@@ -1,53 +1,70 @@
-# 在 VS Code 中配置 LSP
+# NUEDC ESP32 电机控制
 
-## 1. 安装扩展
+本仓库包含 ESP32 电机固件和用于手柄调试的 Python 上位机
 
-用 VS Code 打开项目根目录，并安装工作区推荐的扩展：
+## 项目结构
 
-- clangd
-- PlatformIO IDE
+```text
+firmware/   PlatformIO 固件、SDK 和测试
+host/       Python 手柄调试程序
+docs/       电机协议参考资料
+```
 
-项目配置会关闭 Microsoft C/C++ 扩展的 IntelliSense，避免两个语言服务重复诊断。
+## 固件
 
-## 2. macOS
-
-安装 PlatformIO 和 LLVM：
+在仓库根目录执行：
 
 ```shell
-brew install platformio llvm
-export PATH="$(brew --prefix llvm)/bin:$PATH"
-clangd --version
-pio run -t compiledb
-code .
+pio run -d firmware
+pio run -d firmware -t upload
+pio device monitor -d firmware
 ```
 
-Homebrew 的 LLVM 不会覆盖系统 clangd，因此需要从设置过 `PATH` 的终端启动 VS Code。
+Demo 使用 `Serial2` 连接电机，RX 为 GPIO25，TX 为 GPIO26。USB 串口接收以下命令：
 
-## 3. Windows
-
-使用 PowerShell 安装 LLVM：
-
-```powershell
-winget install LLVM.LLVM
+```text
+V <速度量>\n
 ```
 
-安装完成后重新打开 PowerShell，并确认 clangd 可用：
+速度量范围为 `-1000` 到 `1000`，映射到 `-300` 到 `300 RPM`。连续 500 ms 没有收到有效命令时，电机自动停止
 
-```powershell
-clangd --version
+每条命令返回一行执行结果：
+
+```text
+OK <RPM>
+ERR INVALID_COMMAND
+ERR MOTOR_NOT_READY
+ERR MOTOR_COMMAND <错误码>
 ```
 
-如果命令无法执行，将 `C:\Program Files\LLVM\bin` 加入系统 `Path`。随后在 VS Code 命令面板中运行 `PlatformIO: New Terminal`，执行：
+启动流程等待电机上电 2 秒，发送使能命令并读取一次位置。通信成功返回 `READY`，初始化失败返回 `ERR MOTOR_INIT <错误码>`。错误码依次表示：`0` 成功、`1` 未初始化、`2` 参数错误、`3` 写入失败、`4` 应答超时、`5` 应答无效
 
-```powershell
-pio run -t compiledb
-code .
+## Python 上位机
+
+安装 [uv](https://docs.astral.sh/uv/) 后执行：
+
+```shell
+uv sync --project host
+uv run --project host host/main.py --port /dev/cu.usbserial-0001
 ```
 
-PlatformIO IDE 负责安装和管理 Windows 下的 PlatformIO Core。
+Windows 串口可以写为 `COM3`。程序默认读取第一个手柄的 axis 3，每 50 ms 发送一次速度命令：
 
-## 4. 启动 LSP
+```shell
+uv run --project host host/main.py --port COM3 --axis 3
+uv run --project host host/main.py --port COM3 --axis 3 --invert
+```
 
-`pio run -t compiledb` 会生成 `compile_commands.json`。在 VS Code 命令面板中运行 `clangd: Restart language server`，代码补全、跳转和诊断即可生效。
+按 `Ctrl-C` 退出时会发送零速度命令
 
-修改 `platformio.ini`、增加依赖或新增源文件后，重新运行 `pio run -t compiledb` 并重启 clangd。
+手柄采集行为参考 [ZhiGrip-Joystick](https://github.com/LanternCX/ZhiGrip-Joystick/blob/main/main.py)，串口协议使用本仓库固件的单电机 `V` 命令
+
+## LSP
+
+安装 clangd 和 PlatformIO 后生成固件编译数据库：
+
+```shell
+pio run -d firmware -t compiledb
+```
+
+在编辑器中重启 clangd 即可。修改 `firmware/platformio.ini`、依赖或源文件后需要重新生成编译数据库

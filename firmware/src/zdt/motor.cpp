@@ -29,14 +29,14 @@ Status Bus::triggerSynchronized() {
     return send(frame.bytes, frame.size);
 }
 
-Status Bus::command(uint8_t address, uint8_t function, const uint8_t* frame, size_t size) {
-    uint8_t response[4];
-    const Status status = query(address, function, frame, size, response, sizeof(response));
-    return status ? Status(protocol::commandResult(response)) : status;
+Status Bus::command(const uint8_t* frame, size_t size) {
+    discardInput();
+    return send(frame, size);
 }
 
 Status Bus::query(uint8_t address, uint8_t function, const uint8_t* frame, size_t frameSize,
                   uint8_t* response, size_t responseSize) {
+    delay(1);
     discardInput();
     const Status sent = send(frame, frameSize);
     return sent ? receive(address, function, response, responseSize) : sent;
@@ -55,12 +55,36 @@ Status Bus::send(const uint8_t* frame, size_t size) {
 
 Status Bus::receive(uint8_t address, uint8_t function, uint8_t* response, size_t size) {
     size_t received = 0;
+    uint8_t recent[4];
+    size_t recentSize = 0;
     const unsigned long startedAt = millis();
     while (received < size && millis() - startedAt < config_.timeoutMs) {
         if (serial_.available()) {
-            response[received++] = static_cast<uint8_t>(serial_.read());
-            if (protocol::isProtocolError(response, received, address)) {
+            const uint8_t byte = static_cast<uint8_t>(serial_.read());
+            if (recentSize < sizeof(recent)) {
+                recent[recentSize++] = byte;
+            } else {
+                recent[0] = recent[1];
+                recent[1] = recent[2];
+                recent[2] = recent[3];
+                recent[3] = byte;
+            }
+            if (protocol::isProtocolError(recent, recentSize, address)) {
                 return Status(Error::InvalidResponse);
+            }
+
+            if (received == 0) {
+                if (byte == address) {
+                    response[received++] = byte;
+                }
+            } else if (received == 1) {
+                if (byte == function) {
+                    response[received++] = byte;
+                } else if (byte != address) {
+                    received = 0;
+                }
+            } else {
+                response[received++] = byte;
             }
         } else {
             delay(1);
@@ -80,12 +104,12 @@ void Bus::discardInput() {
 
 Motor::Motor(Bus& bus, const MotorConfig& config) : bus_(bus), config_(config) {}
 
-Status Motor::enable(bool enabled, Start start) {
+Status Motor::enable(bool enabled) {
     if (!valid()) {
         return Status(Error::InvalidArgument);
     }
-    const protocol::Frame frame = protocol::enable(config_.address, enabled, start);
-    return bus_.command(config_.address, frame.function, frame.bytes, frame.size);
+    const protocol::Frame frame = protocol::enable(config_.address, enabled);
+    return bus_.command(frame.bytes, frame.size);
 }
 
 Status Motor::run(int16_t signedRpm, uint8_t acceleration, Start start) {
@@ -98,7 +122,7 @@ Status Motor::run(int16_t signedRpm, uint8_t acceleration, Start start) {
     const uint16_t rpm = static_cast<uint16_t>(negative ? -signedRpm : signedRpm);
     const protocol::Frame frame =
         protocol::run(config_.address, directionFor(negative), rpm, acceleration, start);
-    return bus_.command(config_.address, frame.function, frame.bytes, frame.size);
+    return bus_.command(frame.bytes, frame.size);
 }
 
 Status Motor::moveRelative(float degrees, const MotionOptions& options) {
@@ -125,7 +149,7 @@ Status Motor::move(float degrees, const MotionOptions& options, bool absolute) {
     const protocol::Frame frame = protocol::move(
         config_.address, directionFor(negative), options.rpm, options.acceleration,
         static_cast<uint32_t>(pulsesValue + 0.5), absolute, options.start);
-    return bus_.command(config_.address, frame.function, frame.bytes, frame.size);
+    return bus_.command(frame.bytes, frame.size);
 }
 
 Status Motor::stop(Start start) {
@@ -133,7 +157,7 @@ Status Motor::stop(Start start) {
         return Status(Error::InvalidArgument);
     }
     const protocol::Frame frame = protocol::stop(config_.address, start);
-    return bus_.command(config_.address, frame.function, frame.bytes, frame.size);
+    return bus_.command(frame.bytes, frame.size);
 }
 
 Status Motor::home(HomeMode mode, Start start) {
@@ -141,7 +165,7 @@ Status Motor::home(HomeMode mode, Start start) {
         return Status(Error::InvalidArgument);
     }
     const protocol::Frame frame = protocol::home(config_.address, mode, start);
-    return bus_.command(config_.address, frame.function, frame.bytes, frame.size);
+    return bus_.command(frame.bytes, frame.size);
 }
 
 Result<MotorState> Motor::readState() {

@@ -21,8 +21,6 @@ enum class Error : uint8_t {
     Timeout,
     /** 应答的地址、功能码、长度或校验字节不正确 */
     InvalidResponse,
-    /** 驱动器因未使能或堵转保护等条件拒绝命令 */
-    DeviceRejected,
 };
 
 /**
@@ -184,8 +182,7 @@ class Motor;
 /**
  * @brief 管理一条 HardwareSerial 总线上的收发、超时和多电机同步
  *
- * 控制命令同步等待驱动器确认，但不会等待机械运动完成
- * 驱动器的 Response 参数需要允许返回收到确认
+ * 控制命令只确认串口写入，查询命令等待驱动器应答
  */
 class Bus {
 public:
@@ -211,7 +208,7 @@ public:
 private:
     friend class Motor;
 
-    Status command(uint8_t address, uint8_t function, const uint8_t* frame, size_t size);
+    Status command(const uint8_t* frame, size_t size);
     Status query(uint8_t address, uint8_t function, const uint8_t* frame, size_t frameSize,
                  uint8_t* response, size_t responseSize);
     Status send(const uint8_t* frame, size_t size);
@@ -238,24 +235,22 @@ public:
     /**
      * @brief 使能或失能电机输出
      * @param enabled true 表示使能，false 表示失能
-     * @param start 命令执行方式
-     * @return 驱动器接收命令的结果
+     * @return 命令帧发送结果
      */
-    Status enable(bool enabled = true, Start start = Start::Immediate);
+    Status enable(bool enabled = true);
 
     /**
      * @brief 失能电机输出
-     * @param start 命令执行方式
-     * @return 驱动器接收命令的结果
+     * @return 命令帧发送结果
      */
-    Status disable(Start start = Start::Immediate) { return enable(false, start); }
+    Status disable() { return enable(false); }
 
     /**
      * @brief 以速度模式持续运行
      * @param signedRpm 带符号目标转速，范围 -5000–5000 RPM，不能为 0
      * @param acceleration 驱动器加速度档位，0 表示直接启动
      * @param start 命令执行方式
-     * @return 驱动器接收命令的结果
+     * @return 命令帧发送结果
      */
     Status run(int16_t signedRpm, uint8_t acceleration = 0,
                Start start = Start::Immediate);
@@ -264,7 +259,7 @@ public:
      * @brief 按带符号角度相对移动
      * @param degrees 相对运动角度，正负号表示逻辑方向
      * @param options 位置运动参数
-     * @return 驱动器接收命令的结果，不表示运动已经到位
+     * @return 命令帧发送结果，不表示运动已经到位
      */
     Status moveRelative(float degrees, const MotionOptions& options);
 
@@ -272,14 +267,14 @@ public:
      * @brief 移动到相对驱动器零点的带符号绝对角度
      * @param degrees 目标角度，正负号表示逻辑方向
      * @param options 位置运动参数
-     * @return 驱动器接收命令的结果，不表示运动已经到位
+     * @return 命令帧发送结果，不表示运动已经到位
      */
     Status moveAbsolute(float degrees, const MotionOptions& options);
 
     /**
      * @brief 停止电机
      * @param start 命令执行方式
-     * @return 驱动器接收命令的结果
+     * @return 命令帧发送结果
      */
     Status stop(Start start = Start::Immediate);
 
@@ -287,7 +282,7 @@ public:
      * @brief 使用驱动器已保存的参数触发回零
      * @param mode 回零方式
      * @param start 命令执行方式
-     * @return 驱动器接收命令的结果
+     * @return 命令帧发送结果
      */
     Status home(HomeMode mode = HomeMode::Nearest, Start start = Start::Immediate);
 

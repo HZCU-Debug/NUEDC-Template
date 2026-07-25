@@ -24,7 +24,7 @@ struct Frame {
 };
 
 Frame synchronizedTrigger();
-Frame enable(uint8_t address, bool enabled, Start start);
+Frame enable(uint8_t address, bool enabled);
 Frame run(uint8_t address, uint8_t direction, uint16_t rpm, uint8_t acceleration, Start start);
 Frame move(uint8_t address, uint8_t direction, uint16_t rpm, uint8_t acceleration,
            uint32_t pulses, bool absolute, Start start);
@@ -35,7 +35,6 @@ Frame query(uint8_t address, Query query);
 bool isProtocolError(const uint8_t* response, size_t size, uint8_t address);
 Error validateResponse(const uint8_t* response, size_t size, uint8_t address,
                        uint8_t function);
-Error commandResult(const uint8_t* response);
 MotorState motorState(uint8_t motorFlags, uint8_t homeFlags);
 float positionDegrees(const uint8_t* response, bool invertDirection);
 float speedRpm(const uint8_t* response, bool invertDirection);

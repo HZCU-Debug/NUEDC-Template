@@ -35,11 +35,9 @@ Frame synchronizedTrigger() {
     return frame;
 }
 
-Frame enable(uint8_t address, bool enabled, Start start) {
-    Frame frame = {{address, 0xF3, 0xAB, static_cast<uint8_t>(enabled),
-                    static_cast<uint8_t>(start), kChecksum},
-                   6,
-                   0xF3};
+Frame enable(uint8_t address, bool enabled) {
+    Frame frame = {
+        {address, 0xF3, static_cast<uint8_t>(enabled), kChecksum}, 4, 0xF3};
     return frame;
 }
 
@@ -95,16 +93,6 @@ Error validateResponse(const uint8_t* response, size_t size, uint8_t address,
         return Error::InvalidResponse;
     }
     return Error::None;
-}
-
-Error commandResult(const uint8_t* response) {
-    if (response[2] == 0x02) {
-        return Error::None;
-    }
-    if (response[2] == 0xE2) {
-        return Error::DeviceRejected;
-    }
-    return Error::InvalidResponse;
 }
 
 MotorState motorState(uint8_t motorFlags, uint8_t homeFlags) {
