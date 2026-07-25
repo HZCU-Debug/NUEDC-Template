@@ -36,8 +36,10 @@ Frame synchronizedTrigger() {
 }
 
 Frame enable(uint8_t address, bool enabled) {
-    Frame frame = {
-        {address, 0xF3, static_cast<uint8_t>(enabled), kChecksum}, 4, 0xF3};
+    Frame frame = {{address, 0xF3, 0xAB, static_cast<uint8_t>(enabled), 0x00,
+                    kChecksum},
+                   6,
+                   0xF3};
     return frame;
 }
 

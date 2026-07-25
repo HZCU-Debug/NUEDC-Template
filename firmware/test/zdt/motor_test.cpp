@@ -17,7 +17,11 @@ int main() {
     assert(bus.begin());
 
     assert(motor.enable());
-    expectBytes(serial.transmitted, {0x01, 0xF3, 0x01, 0x6B});
+    expectBytes(serial.transmitted, {0x01, 0xF3, 0xAB, 0x01, 0x00, 0x6B});
+
+    serial.transmitted.clear();
+    assert(motor.disable());
+    expectBytes(serial.transmitted, {0x01, 0xF3, 0xAB, 0x00, 0x00, 0x6B});
 
     serial.transmitted.clear();
     assert(motor.moveRelative(-90.0f, zdt::MotionOptions(300, 10, zdt::Start::Synchronized)));
