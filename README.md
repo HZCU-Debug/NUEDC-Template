@@ -10,17 +10,36 @@ host/       Python 手柄调试程序
 docs/       电机协议参考资料
 ```
 
-## 固件
+## 固件 Demo
 
-在仓库根目录执行：
+固件入口通过 `firmware/src/main.cpp` 中的命名空间别名选择 Demo：
+
+```cpp
+namespace selectedDemo = demo::controllerMotor;
+```
+
+| Demo namespace | 用途 |
+| --- | --- |
+| `demo::controllerMotor` | 接收 Python 手柄速度消息并控制电机 |
+| `demo::motorRamp` | 每 100 ms 改变 10 RPM，在 -300 至 300 RPM 之间往返 |
+| `demo::motorPosition` | 失能电机，每 500 ms 输出转子角度 |
+| `demo::commUnreliable` | 每 500 ms 发送一次非可靠计数消息 |
+| `demo::commReliable` | 可靠发送计数消息，确认后等待 500 ms 再发送下一条 |
+
+修改别名后使用统一的 PlatformIO 环境编译或烧录：
 
 ```shell
 pio run -d firmware
 pio run -d firmware -t upload
+```
+
+电机 Demo 使用 `Serial2` 连接驱动器，RX 为 GPIO25，TX 为 GPIO26。选择 `demo::motorPosition` 并烧录后通过串口监视器查看角度：
+
+```shell
 pio device monitor -d firmware
 ```
 
-Demo 使用 `Serial2` 连接电机，RX 为 GPIO25，TX 为 GPIO26。USB 串口使用 `comm::Link` 接收消息类型 `1` 的速度命令。载荷是一个 2 字节大端有符号整数：
+`demo::controllerMotor` 使用 `comm::Link` 接收消息类型 `1` 的速度命令。载荷是一个 2 字节大端有符号整数：
 
 ```text
 消息类型: 1
@@ -51,6 +70,16 @@ uv run --project host host/main.py --port COM3 --axis 3 --invert
 按 `Ctrl-C` 退出时会发送零速度命令
 
 手柄采集行为参考 [ZhiGrip-Joystick](https://github.com/LanternCX/ZhiGrip-Joystick/blob/main/main.py)，串口通信使用 `host/link.py` 中与固件一致的 COBS 与 CRC-8 协议。
+
+## 通信 Demo 接收端
+
+选择 `demo::commUnreliable` 或 `demo::commReliable` 并烧录后，运行同一个 Python 接收程序：
+
+```shell
+uv run --project host host/receive_counter.py --port /dev/cu.usbserial-0001
+```
+
+程序显示消息的可靠性和递增计数。可靠模式的确认由 `Link` 自动返回。
 
 ## LSP
 
