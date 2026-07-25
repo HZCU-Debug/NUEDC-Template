@@ -1,21 +1,21 @@
 #include "velocity_command.h"
 
-#include <stdlib.h>
-
 namespace demo {
 
-bool parseVelocityCommand(const char* line, int16_t& velocity) {
-    if (line[0] != 'V' || line[1] != ' ') {
+bool decodeVelocityCommand(const uint8_t* payload, size_t size, int16_t& velocity) {
+    if (payload == nullptr || size != 2) {
         return false;
     }
 
-    char* end = nullptr;
-    const long parsed = strtol(line + 2, &end, 10);
-    if (end == line + 2 || *end != '\0' || parsed < -1000 || parsed > 1000) {
+    const uint16_t encoded =
+        static_cast<uint16_t>(static_cast<uint16_t>(payload[0]) << 8) | payload[1];
+    const int32_t decoded =
+        encoded <= INT16_MAX ? encoded : static_cast<int32_t>(encoded) - 0x10000L;
+    if (decoded < -1000 || decoded > 1000) {
         return false;
     }
 
-    velocity = static_cast<int16_t>(parsed);
+    velocity = static_cast<int16_t>(decoded);
     return true;
 }
 
