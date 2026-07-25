@@ -3,6 +3,7 @@
     "clangd": {
       "binary": {
         "arguments": [
+          "--compile-commands-dir=firmware",
           "--query-driver=**/xtensa-esp32-elf-*"
         ]
       }
