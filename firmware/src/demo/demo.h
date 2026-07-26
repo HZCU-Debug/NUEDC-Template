@@ -1,49 +1,41 @@
 /**
  * @file demo.h
- * @brief 所有固件 Demo 的统一入口声明
+ * @brief 固件菜单使用的 Demo 声明
  */
 #pragma once
+
+#include "ui/menu.h"
 
 namespace demo {
 
 /**
  * @brief 手柄控制电机 Demo
+ * @return Demo 菜单项
  */
-namespace controllerMotor {
-void setup();
-void loop();
-}
+ui::Item& controllerMotor();
 
 /**
  * @brief 电机速度梯度 Demo
+ * @return Demo 菜单项
  */
-namespace motorRamp {
-void setup();
-void loop();
-}
+ui::Item& motorRamp();
 
 /**
  * @brief 电机位置读取 Demo
+ * @return Demo 菜单项
  */
-namespace motorPosition {
-void setup();
-void loop();
-}
+ui::Item& motorPosition();
 
 /**
  * @brief 非可靠消息发送 Demo
+ * @return Demo 菜单项
  */
-namespace commUnreliable {
-void setup();
-void loop();
-}
+ui::Item& commUnreliable();
 
 /**
  * @brief 可靠消息发送 Demo
+ * @return Demo 菜单项
  */
-namespace commReliable {
-void setup();
-void loop();
-}
+ui::Item& commReliable();
 
 }

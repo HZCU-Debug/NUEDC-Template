@@ -10,36 +10,47 @@ host/       Python 手柄调试程序
 docs/       电机协议参考资料
 ```
 
-## 固件 Demo
+## 固件 Demo 菜单
 
-固件入口通过 `firmware/src/main.cpp` 中的命名空间别名选择 Demo：
+固件使用 1.14 英寸、240×135、ST7789V 彩屏显示 Demo 菜单：
 
-```cpp
-namespace selectedDemo = demo::controllerMotor;
-```
-
-| Demo namespace | 用途 |
+| 菜单项 | 用途 |
 | --- | --- |
-| `demo::controllerMotor` | 接收 Python 手柄速度消息并控制电机 |
-| `demo::motorRamp` | 每 100 ms 改变 10 RPM，在 -300 至 300 RPM 之间往返 |
-| `demo::motorPosition` | 失能电机，每 500 ms 输出转子角度 |
-| `demo::commUnreliable` | 每 500 ms 发送一次非可靠计数消息 |
-| `demo::commReliable` | 可靠发送计数消息，确认后等待 500 ms 再发送下一条 |
+| `Controller Motor` | 接收 Python 手柄速度消息并控制电机 |
+| `Motor Ramp` | 每 100 ms 改变 10 RPM，在 -300 至 300 RPM 之间往返 |
+| `Motor Position` | 失能电机，每 500 ms 显示和输出转子角度 |
+| `Comm Unreliable` | 每 500 ms 发送一次非可靠计数消息 |
+| `Comm Reliable` | 可靠发送计数消息，确认后等待 500 ms 再发送下一条 |
 
-修改别名后使用统一的 PlatformIO 环境编译或烧录：
+使用 S1/S2 上下移动，S3 进入 Demo，S4 返回菜单。按钮和屏幕引脚如下：
+
+| 功能 | GPIO |
+| --- | --- |
+| S1 / 上 | 0 |
+| S2 / 下 | 35 |
+| S3 / 确认 | 34 |
+| S4 / 返回 | 39 |
+| 屏幕 SCL | 18 |
+| 屏幕 SDA | 23 |
+| 屏幕 RST | 33 |
+| 屏幕 BL | 12 |
+| 屏幕 DC | 27 |
+| 屏幕 CS | 32 |
+
+使用 PlatformIO 编译或烧录：
 
 ```shell
 pio run -d firmware
 pio run -d firmware -t upload
 ```
 
-电机 Demo 使用 `Serial2` 连接驱动器，RX 为 GPIO25，TX 为 GPIO26。选择 `demo::motorPosition` 并烧录后通过串口监视器查看角度：
+电机 Demo 使用 `Serial2` 连接驱动器，RX 为 GPIO25，TX 为 GPIO26。进入 `Motor Position` 后可通过串口监视器查看角度：
 
 ```shell
 pio device monitor -d firmware
 ```
 
-`demo::controllerMotor` 使用 `comm::Link` 接收消息类型 `1` 的速度命令。载荷是一个 2 字节大端有符号整数：
+`Controller Motor` 使用 `comm::Link` 接收消息类型 `1` 的速度命令。载荷是一个 2 字节大端有符号整数：
 
 ```text
 消息类型: 1
@@ -73,7 +84,7 @@ uv run --project host host/main.py --port COM3 --axis 3 --invert
 
 ## 通信 Demo 接收端
 
-选择 `demo::commUnreliable` 或 `demo::commReliable` 并烧录后，运行同一个 Python 接收程序：
+进入 `Comm Unreliable` 或 `Comm Reliable` 后，运行同一个 Python 接收程序：
 
 ```shell
 uv run --project host host/receive_counter.py --port /dev/cu.usbserial-0001
