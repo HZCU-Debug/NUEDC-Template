@@ -3,3 +3,4 @@ compile_commands.json
 .venv/
 __pycache__/
 *.py[cod]
+TI/project/gcc/build/
