@@ -6,43 +6,76 @@
 
 namespace comm {
 
+/**
+ * @brief 消息的投递方式
+ */
 enum class Delivery : uint8_t {
+    /** 发送一次，不等待对端确认 */
     Unreliable,
+    /** 持续重传，直到对端确认或调用 Link::cancel() */
     Reliable,
 };
 
+/**
+ * @brief Link::send() 的受理结果
+ */
 enum class SendResult : uint8_t {
+    /** 消息已经写入串口；可靠消息进入等待确认状态 */
     Accepted,
+    /** 仍有可靠消息等待确认 */
     Busy,
+    /** 链路未初始化，或消息类型、载荷指针、投递方式无效 */
     InvalidArgument,
+    /** 载荷超过 Link 的 Capacity */
     PayloadTooLarge,
+    /** 串口未能写入完整消息帧 */
     WriteFailed,
 };
 
+/**
+ * @brief Link::poll() 返回的事件类型
+ */
 enum class EventType : uint8_t {
+    /** 没有可处理的事件 */
     None,
+    /** 收到一条有效消息 */
     Message,
+    /** 待确认的可靠消息已经送达 */
     Delivered,
 };
 
+/**
+ * @brief 收到的消息视图
+ */
 struct MessageView {
     MessageView()
         : type(0), delivery(Delivery::Unreliable), payload(NULL), size(0) {}
 
+    /** 业务消息类型，范围 1–127 */
     uint8_t type;
+    /** 发送端选择的投递方式 */
     Delivery delivery;
-    /** 载荷仅在下一次 Link::poll() 前有效 */
+    /** 只读载荷；内存仅在下一次 Link::poll() 前有效 */
     const uint8_t* payload;
+    /** 载荷字节数 */
     size_t size;
 };
 
+/**
+ * @brief Link::poll() 返回的一次通信事件
+ */
 struct Event {
     Event() : type(EventType::None), message() {}
 
+    /** 事件类型 */
     EventType type;
+    /** EventType::Message 时有效的消息内容 */
     MessageView message;
 };
 
+/**
+ * @brief Link 使用的 UART 和可靠投递配置
+ */
 struct LinkConfig {
     LinkConfig(uint32_t baudRate = 115200, int8_t rxPin = -1, int8_t txPin = -1,
                uint32_t retryIntervalMs = 50)
@@ -51,9 +84,13 @@ struct LinkConfig {
           txPin(txPin),
           retryIntervalMs(retryIntervalMs) {}
 
+    /** UART 波特率，必须与对端一致且不能为 0 */
     uint32_t baudRate;
+    /** ESP32 RX 引脚，-1 表示使用串口默认引脚 */
     int8_t rxPin;
+    /** ESP32 TX 引脚，-1 表示使用串口默认引脚 */
     int8_t txPin;
+    /** 可靠消息未确认时的重传间隔，单位毫秒，不能为 0 */
     uint32_t retryIntervalMs;
 };
 
@@ -116,10 +153,21 @@ inline bool cobsDecode(uint8_t* data, size_t size, size_t& decodedSize) {
 
 }
 
+/**
+ * @brief 通过 HardwareSerial 收发带校验的消息，并可选择可靠投递
+ * @tparam Capacity 当前端点支持的最大业务载荷字节数，必须大于 0
+ *
+ * 收发双方必须使用相同的串口配置，并定期调用 poll() 处理接收、确认和重传。
+ * 同一时刻最多有一条本端发送的可靠消息等待确认。
+ */
 template <size_t Capacity>
 class Link {
 public:
-    /** Capacity 是当前端点的最大业务载荷字节数 */
+    /**
+     * @brief 绑定硬件串口和链路配置
+     * @param serial Arduino 硬件串口
+     * @param config UART 和可靠投递配置
+     */
     Link(HardwareSerial& serial, const LinkConfig& config = LinkConfig())
         : serial_(serial),
           config_(config),
@@ -135,6 +183,10 @@ public:
         static_assert(Capacity > 0, "Link capacity must be positive");
     }
 
+    /**
+     * @brief 初始化 UART 并清空链路状态
+     * @return 配置有效时返回 true
+     */
     bool begin() {
         if (config_.baudRate == 0 || config_.retryIntervalMs == 0) {
             return false;
@@ -150,6 +202,14 @@ public:
         return true;
     }
 
+    /**
+     * @brief 发送一条业务消息
+     * @param type 业务消息类型，范围 1–127
+     * @param payload 载荷；size 为 0 时可以为 NULL
+     * @param size 载荷字节数，不能超过 Capacity
+     * @param delivery 投递方式
+     * @return 消息受理结果；Accepted 只表示消息帧已写入串口
+     */
     SendResult send(uint8_t type, const uint8_t* payload, size_t size, Delivery delivery) {
         if (!started_) {
             return SendResult::InvalidArgument;
@@ -193,6 +253,13 @@ public:
         return SendResult::Accepted;
     }
 
+    /**
+     * @brief 处理串口输入、可靠消息确认和定时重传
+     * @return 一次通信事件；没有事件时 type 为 EventType::None
+     *
+     * 每次最多返回一个事件，应在 loop() 中持续调用。返回消息中的载荷仅在下一次
+     * poll() 前有效。
+     */
     Event poll() {
         if (!started_) {
             return Event();
@@ -233,6 +300,11 @@ public:
         return Event();
     }
 
+    /**
+     * @brief 停止等待并重传当前可靠消息
+     *
+     * 已写入串口的消息无法撤回；没有消息等待确认时调用不产生效果。
+     */
     void cancel() {
         waiting_ = false;
         pendingSize_ = 0;

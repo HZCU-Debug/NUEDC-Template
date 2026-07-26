@@ -2,4 +2,6 @@
 
 set -e
 
+pio run -d firmware -t compiledb
+
 pio run -d firmware -t upload
