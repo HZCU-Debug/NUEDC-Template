@@ -1,5 +1,7 @@
 #include "ui/menu.h"
 
+#include "runtime/program_runner.h"
+
 namespace ui {
 namespace {
 
@@ -13,9 +15,21 @@ const uint8_t kTextSize = 2;
 
 }
 
-Item::Item(const char* label) : label_(label) {}
+Item::Item(const char* label, runtime::ProgramRunner& runner,
+           runtime::Program& program)
+    : runner_(runner), program_(program), label_(label) {}
 
 const char* Item::label() const { return label_; }
+
+void Item::enter(Adafruit_GFX& display) {
+    runner_.start(program_, display);
+}
+
+void Item::loop(Adafruit_GFX& display, Event event) {
+    runner_.update(display, event);
+}
+
+void Item::exit() { runner_.stop(); }
 
 Menu::Menu(Adafruit_GFX& display, const char* title, Item* const* items,
            size_t itemCount)
@@ -39,9 +53,6 @@ bool Menu::begin() {
         if (items_[index] == nullptr || items_[index]->label() == nullptr) {
             return false;
         }
-    }
-    for (size_t index = 0; index < itemCount_; ++index) {
-        items_[index]->setup();
     }
     begun_ = true;
     renderMenu();

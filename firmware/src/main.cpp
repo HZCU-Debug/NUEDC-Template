@@ -6,7 +6,10 @@
 #include <Arduino.h>
 #include <SPI.h>
 
-#include "item/items.h"
+#include "program/demo/state_machine_demo.h"
+#include "program/programs.h"
+#include "runtime/program_runner.h"
+#include "runtime/state_machine.h"
 #include "ui/menu.h"
 
 namespace {
@@ -70,9 +73,13 @@ Button buttons[] = {
     Button(kBackButtonPin, ui::Event::Back),
 };
 ui::Menu* menu = nullptr;
+runtime::SystemState systemState;
+runtime::ProgramRunner programRunner(systemState);
+runtime::StateMachine<program::DemoState> demoStateMachine(
+    program::DemoState::EntryA);
+program::StateMachineDemoProgram stateMachineDemo(Serial, demoStateMachine);
 
-ui::Event readEvent() {
-    const uint32_t now = millis();
+ui::Event readEvent(uint32_t now) {
     ui::Event result = ui::Event::None;
     for (size_t index = 0; index < sizeof(buttons) / sizeof(buttons[0]); ++index) {
         const ui::Event event = buttons[index].poll(now);
@@ -97,12 +104,32 @@ void setup() {
     pinMode(kDisplayBacklightPin, OUTPUT);
     digitalWrite(kDisplayBacklightPin, HIGH);
 
+    static ui::Item controllerMotorItem(
+        "Controller Motor", programRunner, program::controllerMotor());
+    static ui::Item motorRampItem(
+        "Motor Ramp", programRunner, program::motorRamp());
+    static ui::Item motorPositionItem(
+        "Motor Position", programRunner, program::motorPosition());
+    static ui::Item commUnreliableItem(
+        "Comm Unreliable", programRunner, program::commUnreliable());
+    static ui::Item commReliableItem(
+        "Comm Reliable", programRunner, program::commReliable());
+    static ui::ConfiguredItem<program::StateMachineDemoProgram,
+                              program::DemoConfiguration>
+        stateMachineEntryA("State Entry A", programRunner, stateMachineDemo,
+                           program::DemoConfiguration(program::DemoState::EntryA));
+    static ui::ConfiguredItem<program::StateMachineDemoProgram,
+                              program::DemoConfiguration>
+        stateMachineEntryB("State Entry B", programRunner, stateMachineDemo,
+                           program::DemoConfiguration(program::DemoState::EntryB));
     static ui::Item* items[] = {
-        &item::controllerMotor(),
-        &item::motorRamp(),
-        &item::motorPosition(),
-        &item::commUnreliable(),
-        &item::commReliable(),
+        &controllerMotorItem,
+        &motorRampItem,
+        &motorPositionItem,
+        &commUnreliableItem,
+        &commReliableItem,
+        &stateMachineEntryA,
+        &stateMachineEntryB,
     };
     static ui::Menu appMenu(display, "NUEDC", items,
                             sizeof(items) / sizeof(items[0]));
@@ -110,4 +137,7 @@ void setup() {
     menu->begin();
 }
 
-void loop() { menu->loop(readEvent()); }
+void loop() {
+    systemState.now = millis();
+    menu->loop(readEvent(systemState.now));
+}

@@ -2,46 +2,41 @@
  * @file comm_reliable.cpp
  * @brief 通过 USB 串口可靠发送计数消息并在确认后等待 500 ms 再发送下一条
  */
-#include "items.h"
+#include "program/programs.h"
 
 #include <Arduino.h>
 
 #include "comm/link.h"
 #include "ui/view.h"
 
-namespace item {
+namespace program {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
 const uint32_t kSendIntervalMs = 500;
 const uint8_t kCounterMessage = 1;
 
-class CommReliableItem final : public ui::Item {
+class CommReliableProgram final : public runtime::Program {
 public:
-    CommReliableItem()
-        : ui::Item("Comm Reliable"),
-          link_(Serial, comm::LinkConfig(kSerialBaudRate)),
+    CommReliableProgram()
+        : link_(Serial, comm::LinkConfig(kSerialBaudRate)),
           counter_(0),
           lastDeliveredAt_(0),
           waiting_(false),
           firstMessage_(true) {}
 
-    void setup() override {
+    void start(Adafruit_GFX& display, runtime::SystemState&) override {
         counter_ = 0;
-        lastDeliveredAt_ = 0;
         waiting_ = false;
         firstMessage_ = true;
-    }
-
-    void enter(Adafruit_GFX& display) override {
         link_.begin();
-        waiting_ = false;
         lastDeliveredAt_ = millis();
-        ui::view::beginPage(display, label());
+        ui::view::beginPage(display, "Comm Reliable");
         render(display);
     }
 
-    void loop(Adafruit_GFX& display, ui::Event) override {
+    void update(Adafruit_GFX& display, runtime::SystemState&,
+                ui::Event) override {
         const comm::Event event = link_.poll();
         if (event.type == comm::EventType::Delivered) {
             waiting_ = false;
@@ -64,7 +59,7 @@ public:
         render(display);
     }
 
-    void exit() override {
+    void stop(runtime::SystemState&) override {
         link_.cancel();
         waiting_ = false;
     }
@@ -93,10 +88,10 @@ private:
     bool firstMessage_;
 };
 
-CommReliableItem item;
+CommReliableProgram program;
 
 }
 
-ui::Item& commReliable() { return item; }
+runtime::Program& commReliable() { return program; }
 
 }

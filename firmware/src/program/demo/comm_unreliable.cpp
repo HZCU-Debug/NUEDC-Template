@@ -2,41 +2,37 @@
  * @file comm_unreliable.cpp
  * @brief 每 500 ms 通过 USB 串口发送一次不等待确认或重传的非可靠计数消息
  */
-#include "items.h"
+#include "program/programs.h"
 
 #include <Arduino.h>
 
 #include "comm/link.h"
 #include "ui/view.h"
 
-namespace item {
+namespace program {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
 const uint32_t kSendIntervalMs = 500;
 const uint8_t kCounterMessage = 1;
 
-class CommUnreliableItem final : public ui::Item {
+class CommUnreliableProgram final : public runtime::Program {
 public:
-    CommUnreliableItem()
-        : ui::Item("Comm Unreliable"),
-          link_(Serial, comm::LinkConfig(kSerialBaudRate)),
+    CommUnreliableProgram()
+        : link_(Serial, comm::LinkConfig(kSerialBaudRate)),
           counter_(0),
           lastSentAt_(0) {}
 
-    void setup() override {
+    void start(Adafruit_GFX& display, runtime::SystemState&) override {
         counter_ = 0;
-        lastSentAt_ = 0;
-    }
-
-    void enter(Adafruit_GFX& display) override {
         link_.begin();
         lastSentAt_ = millis();
-        ui::view::beginPage(display, label());
+        ui::view::beginPage(display, "Comm Unreliable");
         render(display);
     }
 
-    void loop(Adafruit_GFX& display, ui::Event) override {
+    void update(Adafruit_GFX& display, runtime::SystemState&,
+                ui::Event) override {
         link_.poll();
         const uint32_t now = millis();
         if (now - lastSentAt_ < kSendIntervalMs) {
@@ -73,10 +69,10 @@ private:
     uint32_t lastSentAt_;
 };
 
-CommUnreliableItem item;
+CommUnreliableProgram program;
 
 }
 
-ui::Item& commUnreliable() { return item; }
+runtime::Program& commUnreliable() { return program; }
 
 }

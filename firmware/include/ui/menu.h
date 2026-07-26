@@ -4,6 +4,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+namespace runtime {
+class Program;
+class ProgramRunner;
+}
+
 namespace ui {
 
 /**
@@ -23,15 +28,18 @@ enum class Event : uint8_t {
 };
 
 /**
- * @brief 可由菜单选择和运行的页面
+ * @brief 由菜单显示并启动一个 Program 的入口
  */
 class Item {
 public:
     /**
      * @brief 创建菜单项
      * @param label 菜单显示名称，生命周期必须长于 Item
+     * @param runner Program 调度器
+     * @param program 菜单进入时启动的 Program
      */
-    explicit Item(const char* label);
+    Item(const char* label, runtime::ProgramRunner& runner,
+         runtime::Program& program);
 
     /**
      * @brief 销毁菜单项
@@ -45,34 +53,69 @@ public:
     const char* label() const;
 
     /**
-     * @brief 初始化长期状态
-     */
-    virtual void setup() {}
-
-    /**
-     * @brief 进入页面并完成首次绘制
+     * @brief 启动绑定的 Program
      * @param display 图形屏幕
      */
-    virtual void enter(Adafruit_GFX&) {}
+    virtual void enter(Adafruit_GFX& display);
 
     /**
-     * @brief 运行页面逻辑并处理输入
+     * @brief 更新当前 Program
      * @param display 图形屏幕
      * @param event 本轮输入事件
      */
-    virtual void loop(Adafruit_GFX& display, Event event) = 0;
+    void loop(Adafruit_GFX& display, Event event);
 
     /**
-     * @brief 退出页面并停止业务活动
+     * @brief 停止当前 Program
      */
-    virtual void exit() {}
+    void exit();
+
+protected:
+    runtime::ProgramRunner& runner_;
+    runtime::Program& program_;
 
 private:
     const char* label_;
 };
 
 /**
- * @brief 管理单级菜单导航、渲染和 Item 生命周期
+ * @brief 启动前向具体 Program 传入强类型配置的菜单项
+ * @tparam ProgramType 提供 configure 方法的 Program 类型
+ * @tparam Configuration Program 使用的配置类型
+ */
+template <typename ProgramType, typename Configuration>
+class ConfiguredItem final : public Item {
+public:
+    /**
+     * @brief 绑定菜单名称、Program 和启动配置
+     * @param label 菜单显示名称
+     * @param runner Program 调度器
+     * @param program 菜单进入时启动的 Program
+     * @param configuration 启动前传入 Program 的配置
+     */
+    ConfiguredItem(const char* label, runtime::ProgramRunner& runner,
+                   ProgramType& program,
+                   const Configuration& configuration)
+        : Item(label, runner, program),
+          configuredProgram_(program),
+          configuration_(configuration) {}
+
+    /**
+     * @brief 配置并启动绑定的 Program
+     * @param display 图形屏幕
+     */
+    void enter(Adafruit_GFX& display) override {
+        configuredProgram_.configure(configuration_);
+        Item::enter(display);
+    }
+
+private:
+    ProgramType& configuredProgram_;
+    Configuration configuration_;
+};
+
+/**
+ * @brief 管理单级菜单导航、渲染和 Program 入口
  */
 class Menu {
 public:

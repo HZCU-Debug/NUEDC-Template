@@ -2,14 +2,14 @@
  * @file motor_ramp.cpp
  * @brief 驱动电机以 10 RPM 为步长在 -300 至 300 RPM 之间每 100 ms 往返变化
  */
-#include "items.h"
+#include "program/programs.h"
 
 #include <Arduino.h>
 
 #include "ui/view.h"
 #include "zdt/motor.h"
 
-namespace item {
+namespace program {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
@@ -21,11 +21,10 @@ const uint32_t kStepIntervalMs = 100;
 const int16_t kSpeedStepRpm = 10;
 const int16_t kMaximumRpm = 300;
 
-class MotorRampItem final : public ui::Item {
+class MotorRampProgram final : public runtime::Program {
 public:
-    MotorRampItem()
-        : ui::Item("Motor Ramp"),
-          motorBus_(Serial2,
+    MotorRampProgram()
+        : motorBus_(Serial2,
                     zdt::BusConfig(kSerialBaudRate, kMotorRxPin, kMotorTxPin)),
           motor_(motorBus_,
                  zdt::MotorConfig(kMotorAddress, kPulsesPerRevolution)),
@@ -34,14 +33,7 @@ public:
           direction_(1),
           lastStepAt_(0) {}
 
-    void setup() override {
-        motorReady_ = false;
-        targetRpm_ = 0;
-        direction_ = 1;
-        lastStepAt_ = 0;
-    }
-
-    void enter(Adafruit_GFX& display) override {
+    void start(Adafruit_GFX& display, runtime::SystemState&) override {
         zdt::Status status = motorBus_.begin();
         if (status) {
             delay(2000);
@@ -51,11 +43,12 @@ public:
         targetRpm_ = 0;
         direction_ = 1;
         lastStepAt_ = millis();
-        ui::view::beginPage(display, label());
+        ui::view::beginPage(display, "Motor Ramp");
         render(display);
     }
 
-    void loop(Adafruit_GFX& display, ui::Event) override {
+    void update(Adafruit_GFX& display, runtime::SystemState&,
+                ui::Event) override {
         const uint32_t now = millis();
         if (!motorReady_ || now - lastStepAt_ < kStepIntervalMs) {
             return;
@@ -77,7 +70,7 @@ public:
         render(display);
     }
 
-    void exit() override {
+    void stop(runtime::SystemState&) override {
         motor_.stop();
         targetRpm_ = 0;
     }
@@ -100,10 +93,10 @@ private:
     uint32_t lastStepAt_;
 };
 
-MotorRampItem item;
+MotorRampProgram program;
 
 }
 
-ui::Item& motorRamp() { return item; }
+runtime::Program& motorRamp() { return program; }
 
 }
