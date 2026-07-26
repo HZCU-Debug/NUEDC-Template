@@ -2,14 +2,14 @@
  * @file motor_position.cpp
  * @brief 失能电机并每 500 ms 显示和输出一次转子角度
  */
-#include "demo.h"
+#include "items.h"
 
 #include <Arduino.h>
 
-#include "view.h"
+#include "ui/view.h"
 #include "zdt/motor.h"
 
-namespace demo {
+namespace item {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
@@ -52,7 +52,7 @@ public:
             Serial.printf("disable_error=%u\n", static_cast<unsigned>(error_));
         }
         lastReadAt_ = millis();
-        view::beginPage(display, label());
+        ui::view::beginPage(display, label());
         render(display);
     }
 
@@ -77,7 +77,7 @@ public:
 
 private:
     void render(Adafruit_GFX& display) const {
-        view::beginBody(display);
+        ui::view::beginBody(display);
         display.setCursor(6, 42);
         if (error_ == zdt::Error::None) {
             display.print("Angle: ");

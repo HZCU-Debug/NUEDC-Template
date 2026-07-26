@@ -1,12 +1,12 @@
 /**
- * @file demo.h
- * @brief 固件菜单使用的 Demo 声明
+ * @file items.h
+ * @brief 固件菜单使用的 Item 声明
  */
 #pragma once
 
 #include "ui/menu.h"
 
-namespace demo {
+namespace item {
 
 /**
  * @brief 手柄控制电机 Demo

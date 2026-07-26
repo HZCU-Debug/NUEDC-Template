@@ -6,7 +6,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 
-#include "demo/demo.h"
+#include "item/items.h"
 #include "ui/menu.h"
 
 namespace {
@@ -98,13 +98,14 @@ void setup() {
     digitalWrite(kDisplayBacklightPin, HIGH);
 
     static ui::Item* items[] = {
-        &demo::controllerMotor(),
-        &demo::motorRamp(),
-        &demo::motorPosition(),
-        &demo::commUnreliable(),
-        &demo::commReliable(),
+        &item::controllerMotor(),
+        &item::motorRamp(),
+        &item::motorPosition(),
+        &item::commUnreliable(),
+        &item::commReliable(),
     };
-    static ui::Menu appMenu(display, items, sizeof(items) / sizeof(items[0]));
+    static ui::Menu appMenu(display, "NUEDC", items,
+                            sizeof(items) / sizeof(items[0]));
     menu = &appMenu;
     menu->begin();
 }

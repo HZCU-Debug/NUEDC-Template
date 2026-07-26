@@ -2,14 +2,14 @@
  * @file comm_unreliable.cpp
  * @brief 每 500 ms 通过 USB 串口发送一次不等待确认或重传的非可靠计数消息
  */
-#include "demo.h"
+#include "items.h"
 
 #include <Arduino.h>
 
 #include "comm/link.h"
-#include "view.h"
+#include "ui/view.h"
 
-namespace demo {
+namespace item {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
@@ -32,7 +32,7 @@ public:
     void enter(Adafruit_GFX& display) override {
         link_.begin();
         lastSentAt_ = millis();
-        view::beginPage(display, label());
+        ui::view::beginPage(display, label());
         render(display);
     }
 
@@ -62,7 +62,7 @@ private:
     }
 
     void render(Adafruit_GFX& display) const {
-        view::beginBody(display);
+        ui::view::beginBody(display);
         display.setCursor(6, 42);
         display.print("Sent: ");
         display.print(counter_);

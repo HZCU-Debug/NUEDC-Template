@@ -17,8 +17,10 @@ Item::Item(const char* label) : label_(label) {}
 
 const char* Item::label() const { return label_; }
 
-Menu::Menu(Adafruit_GFX& display, Item* const* items, size_t itemCount)
+Menu::Menu(Adafruit_GFX& display, const char* title, Item* const* items,
+           size_t itemCount)
     : display_(display),
+      title_(title),
       items_(items),
       itemCount_(itemCount),
       selectedIndex_(0),
@@ -30,7 +32,7 @@ bool Menu::begin() {
     if (begun_) {
         return true;
     }
-    if (items_ == nullptr || itemCount_ == 0) {
+    if (title_ == nullptr || items_ == nullptr || itemCount_ == 0) {
         return false;
     }
     for (size_t index = 0; index < itemCount_; ++index) {
@@ -102,7 +104,7 @@ void Menu::renderMenu() {
     display_.setTextSize(kTextSize);
     display_.setTextColor(kTextColor);
     display_.setCursor(kMargin, 4);
-    display_.print("Demos");
+    display_.print(title_);
 
     const size_t visibleRows = static_cast<size_t>((display_.height() - kTitleHeight) / kRowHeight);
     const size_t end = firstVisibleIndex_ + visibleRows < itemCount_

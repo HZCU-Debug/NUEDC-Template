@@ -34,14 +34,14 @@ int main() {
     RecordingItem second("Second");
     RecordingItem third("Third");
     ui::Item* items[] = {&first, &second, &third};
-    ui::Menu menu(display, items, 3);
+    ui::Menu menu(display, "Test Menu", items, 3);
 
     assert(menu.begin());
     assert(first.setupCount == 1);
     assert(second.setupCount == 1);
     assert(third.setupCount == 1);
     assert(display.printed ==
-           std::vector<std::string>({"Demos", "First", "Second", "Third"}));
+           std::vector<std::string>({"Test Menu", "First", "Second", "Third"}));
     assert(menu.begin());
     assert(first.setupCount == 1);
     assert(second.setupCount == 1);

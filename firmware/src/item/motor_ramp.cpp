@@ -2,14 +2,14 @@
  * @file motor_ramp.cpp
  * @brief 驱动电机以 10 RPM 为步长在 -300 至 300 RPM 之间每 100 ms 往返变化
  */
-#include "demo.h"
+#include "items.h"
 
 #include <Arduino.h>
 
-#include "view.h"
+#include "ui/view.h"
 #include "zdt/motor.h"
 
-namespace demo {
+namespace item {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
@@ -51,7 +51,7 @@ public:
         targetRpm_ = 0;
         direction_ = 1;
         lastStepAt_ = millis();
-        view::beginPage(display, label());
+        ui::view::beginPage(display, label());
         render(display);
     }
 
@@ -84,7 +84,7 @@ public:
 
 private:
     void render(Adafruit_GFX& display) const {
-        view::beginBody(display);
+        ui::view::beginBody(display);
         display.setCursor(6, 42);
         display.print(motorReady_ ? "Motor ready" : "Motor error");
         display.setCursor(6, 68);

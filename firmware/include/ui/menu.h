@@ -79,10 +79,12 @@ public:
     /**
      * @brief 绑定屏幕和静态菜单项
      * @param display 已初始化的图形屏幕
+     * @param title 菜单标题，生命周期必须长于 Menu
      * @param items 非拥有型 Item 指针数组，生命周期必须长于 Menu
      * @param itemCount 菜单项数量
      */
-    Menu(Adafruit_GFX& display, Item* const* items, size_t itemCount);
+    Menu(Adafruit_GFX& display, const char* title, Item* const* items,
+         size_t itemCount);
 
     /**
      * @brief 初始化所有 Item 并绘制菜单
@@ -101,6 +103,7 @@ private:
     void renderMenu();
 
     Adafruit_GFX& display_;
+    const char* title_;
     Item* const* items_;
     size_t itemCount_;
     size_t selectedIndex_;

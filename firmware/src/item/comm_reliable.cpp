@@ -2,14 +2,14 @@
  * @file comm_reliable.cpp
  * @brief 通过 USB 串口可靠发送计数消息并在确认后等待 500 ms 再发送下一条
  */
-#include "demo.h"
+#include "items.h"
 
 #include <Arduino.h>
 
 #include "comm/link.h"
-#include "view.h"
+#include "ui/view.h"
 
-namespace demo {
+namespace item {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
@@ -37,7 +37,7 @@ public:
         link_.begin();
         waiting_ = false;
         lastDeliveredAt_ = millis();
-        view::beginPage(display, label());
+        ui::view::beginPage(display, label());
         render(display);
     }
 
@@ -78,7 +78,7 @@ private:
     }
 
     void render(Adafruit_GFX& display) const {
-        view::beginBody(display);
+        ui::view::beginBody(display);
         display.setCursor(6, 42);
         display.print("Count: ");
         display.print(counter_);
