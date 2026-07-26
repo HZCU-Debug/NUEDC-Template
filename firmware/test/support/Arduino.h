@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <deque>
 #include <initializer_list>
 #include <vector>
@@ -17,6 +18,8 @@ inline void delay(unsigned long) {}
 
 class HardwareSerial {
 public:
+    void begin(unsigned long) {}
+
     void begin(unsigned long, uint32_t, int8_t, int8_t) {}
 
     size_t write(const uint8_t* data, size_t size) {
@@ -40,6 +43,11 @@ public:
     }
 
     void flush() {}
+
+    void print(const char* text) {
+        const size_t size = std::strlen(text);
+        transmitted.insert(transmitted.end(), text, text + size);
+    }
 
     void respondWith(std::initializer_list<uint8_t> response) {
         responses.emplace_back(response);

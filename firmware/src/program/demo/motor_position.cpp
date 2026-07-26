@@ -2,14 +2,14 @@
  * @file motor_position.cpp
  * @brief 失能电机并每 500 ms 显示和输出一次转子角度
  */
-#include "items.h"
+#include "program/programs.h"
 
 #include <Arduino.h>
 
 #include "ui/view.h"
 #include "zdt/motor.h"
 
-namespace item {
+namespace program {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
@@ -19,11 +19,10 @@ const uint8_t kMotorAddress = 1;
 const uint32_t kPulsesPerRevolution = 3200;
 const uint32_t kReadIntervalMs = 500;
 
-class MotorPositionItem final : public ui::Item {
+class MotorPositionProgram final : public runtime::Program {
 public:
-    MotorPositionItem()
-        : ui::Item("Motor Position"),
-          motorBus_(Serial2,
+    MotorPositionProgram()
+        : motorBus_(Serial2,
                     zdt::BusConfig(kSerialBaudRate, kMotorRxPin, kMotorTxPin)),
           motor_(motorBus_,
                  zdt::MotorConfig(kMotorAddress, kPulsesPerRevolution)),
@@ -32,14 +31,8 @@ public:
           positionDegrees_(0.0f),
           error_(zdt::Error::None) {}
 
-    void setup() override {
-        motorReady_ = false;
-        lastReadAt_ = 0;
+    void start(Adafruit_GFX& display, runtime::SystemState&) override {
         positionDegrees_ = 0.0f;
-        error_ = zdt::Error::None;
-    }
-
-    void enter(Adafruit_GFX& display) override {
         Serial.begin(kSerialBaudRate);
         zdt::Status status = motorBus_.begin();
         if (status) {
@@ -52,11 +45,12 @@ public:
             Serial.printf("disable_error=%u\n", static_cast<unsigned>(error_));
         }
         lastReadAt_ = millis();
-        ui::view::beginPage(display, label());
+        ui::view::beginPage(display, "Motor Position");
         render(display);
     }
 
-    void loop(Adafruit_GFX& display, ui::Event) override {
+    void update(Adafruit_GFX& display, runtime::SystemState&,
+                ui::Event) override {
         const uint32_t now = millis();
         if (!motorReady_ || now - lastReadAt_ < kReadIntervalMs) {
             return;
@@ -96,10 +90,10 @@ private:
     zdt::Error error_;
 };
 
-MotorPositionItem item;
+MotorPositionProgram program;
 
 }
 
-ui::Item& motorPosition() { return item; }
+runtime::Program& motorPosition() { return program; }
 
 }

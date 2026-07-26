@@ -2,7 +2,7 @@
  * @file controller_motor.cpp
  * @brief 接收 Python 手柄发送的速度消息并驱动电机持续旋转
  */
-#include "items.h"
+#include "program/programs.h"
 
 #include <Arduino.h>
 
@@ -10,7 +10,7 @@
 #include "ui/view.h"
 #include "zdt/motor.h"
 
-namespace item {
+namespace program {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
@@ -23,11 +23,10 @@ const uint8_t kAcceleration = 0;
 const uint32_t kCommandTimeoutMs = 500;
 const uint8_t kVelocityMessage = 1;
 
-class ControllerMotorItem final : public ui::Item {
+class ControllerMotorProgram final : public runtime::Program {
 public:
-    ControllerMotorItem()
-        : ui::Item("Controller Motor"),
-          motorBus_(Serial2,
+    ControllerMotorProgram()
+        : motorBus_(Serial2,
                     zdt::BusConfig(kSerialBaudRate, kMotorRxPin, kMotorTxPin)),
           motor_(motorBus_,
                  zdt::MotorConfig(kMotorAddress, kPulsesPerRevolution)),
@@ -37,14 +36,7 @@ public:
           targetRpm_(0),
           lastCommandAt_(0) {}
 
-    void setup() override {
-        motorReady_ = false;
-        motorRunning_ = false;
-        targetRpm_ = 0;
-        lastCommandAt_ = 0;
-    }
-
-    void enter(Adafruit_GFX& display) override {
+    void start(Adafruit_GFX& display, runtime::SystemState&) override {
         controllerLink_.begin();
         zdt::Status status = motorBus_.begin();
         if (status) {
@@ -59,11 +51,12 @@ public:
         motorRunning_ = false;
         targetRpm_ = 0;
         lastCommandAt_ = millis();
-        ui::view::beginPage(display, label());
+        ui::view::beginPage(display, "Controller Motor");
         render(display);
     }
 
-    void loop(Adafruit_GFX& display, ui::Event) override {
+    void update(Adafruit_GFX& display, runtime::SystemState&,
+                ui::Event) override {
         bool changed = readCommands();
         if (motorRunning_ && millis() - lastCommandAt_ >= kCommandTimeoutMs) {
             motor_.stop();
@@ -76,7 +69,7 @@ public:
         }
     }
 
-    void exit() override {
+    void stop(runtime::SystemState&) override {
         controllerLink_.cancel();
         motor_.stop();
         motorRunning_ = false;
@@ -154,10 +147,10 @@ private:
     uint32_t lastCommandAt_;
 };
 
-ControllerMotorItem item;
+ControllerMotorProgram program;
 
 }
 
-ui::Item& controllerMotor() { return item; }
+runtime::Program& controllerMotor() { return program; }
 
 }
