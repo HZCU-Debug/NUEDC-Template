@@ -45,6 +45,10 @@ public:
         responses.emplace_back(response);
     }
 
+    void receive(std::initializer_list<uint8_t> data) {
+        received.insert(received.end(), data.begin(), data.end());
+    }
+
     std::vector<uint8_t> transmitted;
 
 private:

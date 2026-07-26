@@ -91,7 +91,7 @@ enum class HomeMode : uint8_t {
  */
 struct BusConfig {
     BusConfig(uint32_t baudRate = 115200, int8_t rxPin = -1, int8_t txPin = -1,
-              uint32_t timeoutMs = 50)
+              uint32_t timeoutMs = 150)
         : baudRate(baudRate), rxPin(rxPin), txPin(txPin), timeoutMs(timeoutMs) {}
 
     /** UART 波特率，必须与驱动器一致 */

@@ -2,6 +2,7 @@
   "lsp": {
     "clangd": {
       "binary": {
+        "path": "/opt/homebrew/opt/llvm/bin/clangd",
         "arguments": [
           "--compile-commands-dir=firmware",
           "--query-driver=**/xtensa-esp32-elf-*"

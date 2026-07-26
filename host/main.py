@@ -1,7 +1,11 @@
 import argparse
+import struct
 import time
 
+from link import Delivery, Link, SendResult
+
 VELOCITY_LIMIT = 1000
+VELOCITY_MESSAGE = 1
 
 
 def axis_to_velocity(value: float, deadzone: float, invert: bool = False) -> int:
@@ -13,10 +17,10 @@ def axis_to_velocity(value: float, deadzone: float, invert: bool = False) -> int
     return round(value * VELOCITY_LIMIT)
 
 
-def velocity_command(velocity: int) -> bytes:
+def velocity_payload(velocity: int) -> bytes:
     if not -VELOCITY_LIMIT <= velocity <= VELOCITY_LIMIT:
         raise ValueError("velocity must be between -1000 and 1000")
-    return f"V {velocity}\n".encode("ascii")
+    return struct.pack(">h", velocity)
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,22 +59,20 @@ def main() -> None:
         )
 
     connection = serial.Serial(args.port, args.baud, timeout=0.1)
+    link = Link(connection, capacity=2, retry_interval_ms=50)
     last_velocity = None
-    last_response = None
     try:
         while True:
             pygame.event.pump()
             velocity = axis_to_velocity(
                 joystick.get_axis(args.axis), args.deadzone, args.invert
             )
-            connection.write(velocity_command(velocity))
-            response = (
-                connection.readline().decode("ascii", errors="replace").strip()
-                or "NO_RESPONSE"
+            result = link.send(
+                VELOCITY_MESSAGE, velocity_payload(velocity), Delivery.UNRELIABLE
             )
-            if response != last_response:
-                print(f"esp32: {response}")
-                last_response = response
+            if result != SendResult.ACCEPTED:
+                raise RuntimeError(f"failed to send velocity: {result}")
+            link.poll()
             if velocity != last_velocity:
                 print(f"velocity: {velocity}")
                 last_velocity = velocity
@@ -79,7 +81,7 @@ def main() -> None:
         pass
     finally:
         try:
-            connection.write(velocity_command(0))
+            link.send(VELOCITY_MESSAGE, velocity_payload(0), Delivery.UNRELIABLE)
         except serial.SerialException:
             pass
         connection.close()

@@ -1,4 +1,4 @@
-from main import axis_to_velocity, velocity_command
+from main import axis_to_velocity, velocity_payload
 
 
 def test_axis_to_velocity() -> None:
@@ -9,12 +9,13 @@ def test_axis_to_velocity() -> None:
     assert axis_to_velocity(2.0, 0.1) == 1000
 
 
-def test_velocity_command() -> None:
-    assert velocity_command(-500) == b"V -500\n"
-    assert velocity_command(0) == b"V 0\n"
+def test_velocity_payload() -> None:
+    assert velocity_payload(1000) == b"\x03\xe8"
+    assert velocity_payload(-500) == b"\xfe\x0c"
+    assert velocity_payload(0) == b"\x00\x00"
 
     try:
-        velocity_command(1001)
+        velocity_payload(1001)
     except ValueError:
         pass
     else:
@@ -23,4 +24,4 @@ def test_velocity_command() -> None:
 
 if __name__ == "__main__":
     test_axis_to_velocity()
-    test_velocity_command()
+    test_velocity_payload()
