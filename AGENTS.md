@@ -25,6 +25,12 @@
 
 提交改动前至少运行一次 `pio run -d firmware`。修改 Python 上位机时还需运行对应测试。不要提交 `.pio/` 和 `compile_commands.json` 等生成文件。
 
+# Repository Rules
+
+1. 任何模块对外暴露的接口，需要进行注释
+2. 注释避免使用行尾注释，对于接口使用 Doxgen 风格块注释 `/* */`，对于过程性代码使用行注释 `//`
+3. 注释末尾禁止使用句号
+
 ## Agent skills
 
 ### Issue tracker
