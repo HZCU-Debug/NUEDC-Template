@@ -25,12 +25,13 @@ CPP_OBJECTS := $(patsubst $(SEEKFREE)/%.cpp,$(BUILD_DIR)/%.cpp.o,$(CPP_SOURCES))
 OBJECTS := $(C_OBJECTS) $(CPP_OBJECTS)
 DEPS := $(OBJECTS:.o=.d)
 
-TOOLCHAIN ?= /Applications/ArmGNUToolchain/15.2.rel1/arm-none-eabi/bin
-CC := $(TOOLCHAIN)/arm-none-eabi-gcc
-CXX := $(TOOLCHAIN)/arm-none-eabi-g++
+TOOLCHAIN ?=
+TOOLCHAIN_PREFIX := $(if $(TOOLCHAIN),$(TOOLCHAIN)/)
+CC := $(TOOLCHAIN_PREFIX)arm-none-eabi-gcc
+CXX := $(TOOLCHAIN_PREFIX)arm-none-eabi-g++
 LINKER ?= $(CXX)
-OBJCOPY := $(TOOLCHAIN)/arm-none-eabi-objcopy
-SIZE := $(TOOLCHAIN)/arm-none-eabi-size
+OBJCOPY := $(TOOLCHAIN_PREFIX)arm-none-eabi-objcopy
+SIZE := $(TOOLCHAIN_PREFIX)arm-none-eabi-size
 PYOCD := uvx --from pyocd pyocd
 DEVICE := MSPM0G3507
 HOST_CXX ?= c++

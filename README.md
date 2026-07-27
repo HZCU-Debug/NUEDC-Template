@@ -67,7 +67,7 @@ pio device monitor -d firmware
 
 TI 工程提供与 ESP32 固件一致的电机和通信 Demo，另有 `State Entry A`、`State Entry B` 两个状态机入口。使用 S1/S2 上下移动，S3 进入 Demo，S4 返回菜单。
 
-macOS GCC 工程默认使用安装在 `/Applications/ArmGNUToolchain/15.2.rel1/arm-none-eabi/bin` 的 Arm GNU Toolchain 15.2.Rel1。只编译固件或运行本机测试：
+GCC 工程默认从 `PATH` 查找 Arm GNU Toolchain。只编译固件或运行本机测试：
 
 ```shell
 make -C ti/project/gcc all
