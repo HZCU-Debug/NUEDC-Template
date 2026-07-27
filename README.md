@@ -6,7 +6,7 @@
 
 ```text
 firmware/   PlatformIO 固件、SDK 和测试
-TI/         MSPM0G3507 工程、逐飞库和测试
+ti/         MSPM0G3507 工程、逐飞库和测试
 host/       Python 手柄调试程序
 docs/       电机协议参考资料
 ```
@@ -70,31 +70,31 @@ TI 工程提供与 ESP32 固件一致的电机和通信 Demo，另有 `State Ent
 macOS GCC 工程默认使用安装在 `/Applications/ArmGNUToolchain/15.2.rel1/arm-none-eabi/bin` 的 Arm GNU Toolchain 15.2.Rel1。只编译固件或运行本机测试：
 
 ```shell
-make -C TI/project/gcc all
-make -C TI/project/gcc test
+make -C ti/project/gcc all
+make -C ti/project/gcc test
 ```
 
 使用其他安装位置时，通过 `TOOLCHAIN` 指定工具链的 `bin` 目录：
 
 ```shell
-make -C TI/project/gcc TOOLCHAIN=/path/to/arm-none-eabi/bin all
+make -C ti/project/gcc TOOLCHAIN=/path/to/arm-none-eabi/bin all
 ```
 
 安装 [uv](https://docs.astral.sh/uv/) 并连接调试器后，可以通过 pyOCD 安装器件包并烧录应用：
 
 ```shell
-./TI/build.sh app
+./ti/build.sh app
 ```
 
 硬件冒烟程序会让 A14 蜂鸣器响两次，可分别编译、烧录已生成的固件，或重新编译后烧录：
 
 ```shell
-./TI/build.sh smoke-build
-./TI/build.sh smoke-flash
-./TI/build.sh smoke
+./ti/build.sh smoke-build
+./ti/build.sh smoke-flash
+./ti/build.sh smoke
 ```
 
-Keil 工程位于 `TI/project/keil/SeekFree_MSPM0G3507_Device_Library.uvprojx`。
+Keil 工程位于 `ti/project/keil/SeekFree_MSPM0G3507_Device_Library.uvprojx`。
 
 上位机通信使用 UART0（TX A10、RX A11），电机通信使用 UART2（TX B15、RX B16），波特率均为 115200。四个菜单按键 S1 至 S4 依次使用 A30、A31、B0、B1。
 
@@ -198,4 +198,4 @@ CRC-8 使用多项式 `07`、初始值 `00`、结果异或值 `00`，按最高�
 pio run -d firmware -t compiledb
 ```
 
-在编辑器中重启 clangd 即可。修改 `firmware/platformio.ini`、依赖或源文件后需要重新生成编译数据库。TI 工程使用仓库内的 `TI/compile_flags.txt`
+在编辑器中重启 clangd 即可。修改 `firmware/platformio.ini`、依赖或源文件后需要重新生成编译数据库。TI 工程使用仓库内的 `ti/compile_flags.txt`
