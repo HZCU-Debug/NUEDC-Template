@@ -52,6 +52,7 @@ SYSCONFIG_WEAK void SYSCFG_DL_init(void)
     SYSCFG_DL_SYSCTL_init();
     SYSCFG_DL_VREF_init();
     SYSCFG_DL_SYSTICK_init();
+//    SYSCFG_DL_SYSCTL_CLK_init();
 }
 
 SYSCONFIG_WEAK void SYSCFG_DL_initPower(void)
@@ -79,22 +80,23 @@ SYSCONFIG_WEAK void SYSCFG_DL_GPIO_init(void)
     DL_GPIO_initDigitalOutputFeatures(LED_A14_PIN_14_IOMUX,
 		 DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_DOWN,
 		 DL_GPIO_DRIVE_STRENGTH_LOW, DL_GPIO_HIZ_DISABLE);
-
+    
     DL_GPIO_initDigitalInputFeatures(KEY_BSL_PIN_18_IOMUX,
 		 DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_DOWN,
 		 DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE);
 
     DL_GPIO_clearPins(GPIOA, LED_A14_PIN_14_PIN);
     DL_GPIO_enableOutput(GPIOA, LED_A14_PIN_14_PIN);
-    DL_GPIO_setUpperPinsPolarity(GPIOA, DL_GPIO_PIN_18_EDGE_RISE);
-    DL_GPIO_clearInterruptStatus(GPIOA, KEY_BSL_PIN_18_PIN);
-    DL_GPIO_enableInterrupt(GPIOA, KEY_BSL_PIN_18_PIN);
+    
+//    DL_GPIO_setUpperPinsPolarity(GPIOA, DL_GPIO_PIN_18_EDGE_RISE);
+//    DL_GPIO_clearInterruptStatus(GPIOA, KEY_BSL_PIN_18_PIN);
+//    DL_GPIO_enableInterrupt(GPIOA, KEY_BSL_PIN_18_PIN);
 
 }
 
 
 static const DL_SYSCTL_SYSPLLConfig gSYSPLLConfig = {
-    .inputFreq              = DL_SYSCTL_SYSPLL_INPUT_FREQ_32_48_MHZ,
+	.inputFreq              = DL_SYSCTL_SYSPLL_INPUT_FREQ_32_48_MHZ,
 	.rDivClk2x              = 1,
 	.rDivClk1               = 0,
 	.rDivClk0               = 0,
@@ -106,132 +108,55 @@ static const DL_SYSCTL_SYSPLLConfig gSYSPLLConfig = {
 	.qDiv                   = 3,
 	.pDiv                   = DL_SYSCTL_SYSPLL_PDIV_1
 };
+
+SYSCONFIG_WEAK bool SYSCFG_DL_SYSCTL_SYSPLL_init(void)
+{
+    bool fFCCRatioStatus = false;
+    uint32_t fFCCSysoscCount;
+    uint32_t fFCCPllCount;
+    uint32_t fFCCRatio;
+
+    DL_SYSCTL_setFCCPeriods( DL_SYSCTL_FCC_TRIG_CNT_01 );
+
+    /* Measuring PLL. */
+    DL_SYSCTL_configFCC(DL_SYSCTL_FCC_TRIG_TYPE_RISE_RISE,
+                        DL_SYSCTL_FCC_TRIG_SOURCE_LFCLK,
+                        DL_SYSCTL_FCC_CLOCK_SOURCE_SYSPLLCLK0);
+
+    /* Get SYSPLL frequency using FCC */
+    DL_SYSCTL_startFCC();
+    while (DL_SYSCTL_isFCCDone() == 0);
+
+    /* get measA= SYSPLLCLK0 freq wrt LFOSC*/
+    fFCCPllCount = DL_SYSCTL_readFCC();
+
+    /* Measuring SYSPLL Source */
+    DL_SYSCTL_configFCC(DL_SYSCTL_FCC_TRIG_TYPE_RISE_RISE,
+                        DL_SYSCTL_FCC_TRIG_SOURCE_LFCLK,
+                        DL_SYSCTL_FCC_CLOCK_SOURCE_HFCLK);
+    /* Get SYSPLL frequency using FCC */
+    DL_SYSCTL_startFCC();
+    while (DL_SYSCTL_isFCCDone() == 0 );
+
+    /* get measB= SYSOSC freq wrt LFOSC*/
+    fFCCSysoscCount = DL_SYSCTL_readFCC();
+
+    /* Get ratio of both measurements*/
+    fFCCRatio = (fFCCPllCount * FLOAT_TO_INT_SCALE) / fFCCSysoscCount;
+    /* Check ratio is within bounds*/
+    if ((FCC_LOWER_BOUND <  fFCCRatio) && (fFCCRatio < FCC_UPPER_BOUND))
+    {
+        /* ratio is good for proceeding into application code. */
+        fFCCRatioStatus = true;
+    }
+
+    return fFCCRatioStatus;
+}
 static const DL_SYSCTL_LFCLKConfig gLFCLKConfig = {
-    .lowCap   = false,
+    .lowCap   = true,
     .monitor  = false,
     .xt1Drive = DL_SYSCTL_LFXT_DRIVE_STRENGTH_HIGHEST,
 };
-
-
-///////////////////////////////////////////////////////////////
-
-
-void DL_SYSCTL_setHFCLKSourceHFXTParams (DL_SYSCTL_HFXT_RANGE range, uint32_t startupTime, bool monitorEnable)
-{
-    uint32_t register_temp = SYSCTL->SOCLOCK.HFCLKCLKCFG;
-
-    register_temp &= ~(SYSCTL_HFCLKCLKCFG_HFXTRSEL_MASK | SYSCTL_HFCLKCLKCFG_HFCLKFLTCHK_MASK);
-
-    switch(range)
-    {
-        case DL_SYSCTL_HFXT_RANGE_4_8_MHZ  :    register_temp |= (SYSCTL_HFCLKCLKCFG_HFXTRSEL_RANGE4TO8);   break;
-        case DL_SYSCTL_HFXT_RANGE_8_16_MHZ :    register_temp |= (SYSCTL_HFCLKCLKCFG_HFXTRSEL_RANGE8TO16);  break;
-        case DL_SYSCTL_HFXT_RANGE_16_32_MHZ:    register_temp |= (SYSCTL_HFCLKCLKCFG_HFXTRSEL_RANGE16TO32); break;
-        case DL_SYSCTL_HFXT_RANGE_32_48_MHZ:    register_temp |= (SYSCTL_HFCLKCLKCFG_HFXTRSEL_RANGE32TO48); break;
-    }
-    register_temp |= (monitorEnable) ? (SYSCTL_HFCLKCLKCFG_HFCLKFLTCHK_ENABLE) : (SYSCTL_HFCLKCLKCFG_HFCLKFLTCHK_DISABLE);
-
-    SYSCTL->SOCLOCK.HFCLKCLKCFG = register_temp;
-
-	SYSCTL->SOCLOCK.HSCLKEN |= SYSCTL_HSCLKEN_HFXTEN_ENABLE;								// 必须启动 否则频率不准
-		
-    SYSCTL->SOCLOCK.HSCLKEN =   SYSCTL_HSCLKEN_SYSPLLEN_ENABLE | SYSCTL_HSCLKEN_USEEXTHFCLK_ENABLE;
-    SYSCTL->SOCLOCK.HSCLKEN |=  SYSCTL_HSCLKCFG_HSCLKSEL_HFCLKCLK;
-
-
-
-
-}
-
-
-
-
-
-void DL_SYSCTL_configSYSPLL (const DL_SYSCTL_SYSPLLConfig *config)
-{
-    uint32_t register_temp = 0;
-	
-	
-			 SYSCTL->SOCLOCK.HSCLKEN &= ~(SYSCTL_HSCLKEN_SYSPLLEN_MASK);
-
-    {
-        register_temp = SYSCTL->SOCLOCK.SYSPLLCFG0;
-
-        register_temp   &= ~(SYSCTL_SYSPLLCFG0_SYSPLLREF_MASK   | SYSCTL_SYSPLLCFG0_MCLK2XVCO_MASK  
-                        |   SYSCTL_SYSPLLCFG0_ENABLECLK0_MASK   | SYSCTL_SYSPLLCFG0_ENABLECLK1_MASK | SYSCTL_SYSPLLCFG0_ENABLECLK2X_MASK
-                        |   SYSCTL_SYSPLLCFG0_RDIVCLK0_MASK     | SYSCTL_SYSPLLCFG0_RDIVCLK1_MASK   | SYSCTL_SYSPLLCFG0_RDIVCLK2X_MASK  );
-        register_temp   |=  config->rDivClk2x   ;
-        register_temp   |=  config->rDivClk1    ;
-        register_temp   |=  config->rDivClk0    ;
-        register_temp   |=  config->enableCLK2x ;
-        register_temp   |=  config->enableCLK1  ;
-        register_temp   |=  config->enableCLK0  ;
-        register_temp   |=  config->sysPLLMCLK  ;
-        register_temp   |=  config->sysPLLRef   ;
-
-        SYSCTL->SOCLOCK.SYSPLLCFG0 = register_temp;
-    }
-		
-
-    {
-        register_temp = SYSCTL->SOCLOCK.SYSPLLCFG1;
-
-        register_temp &= ~(SYSCTL_SYSPLLCFG1_PDIV_MASK | SYSCTL_SYSPLLCFG1_QDIV_MASK);
-        register_temp   |=  (config->qDiv << SYSCTL_SYSPLLCFG1_QDIV_OFS );
-        register_temp   |=  (config->pDiv);
-
-        SYSCTL->SOCLOCK.SYSPLLCFG1 = register_temp;
-    }
-		
-				{
-    SYSCTL->SOCLOCK.SYSPLLPARAM0 =
-        *(volatile uint32_t *) ((uint32_t) config->inputFreq);
-    SYSCTL->SOCLOCK.SYSPLLPARAM1 =
-        *(volatile uint32_t *) ((uint32_t) config->inputFreq + (uint32_t) 0x4);
-		}
-
-
-			SYSCTL->SOCLOCK.HSCLKEN |= SYSCTL_HSCLKEN_SYSPLLEN_ENABLE;
-
-    while ((DL_SYSCTL_getClockStatus() & SYSCTL_CLKSTATUS_SYSPLLGOOD_MASK) !=
-           DL_SYSCTL_CLK_STATUS_SYSPLL_GOOD) {
-        ;
-						 }
-						 
-						 
-
-
-}
-
-void DL_SYSCTL_setLFCLKSourceLFXT (const DL_SYSCTL_LFCLKConfig *config)
-{
-    uint32_t register_temp = SYSCTL->SOCLOCK.LFCLKCFG;
-
-    register_temp &= ~(SYSCTL_LFCLKCFG_XT1DRIVE_MASK | SYSCTL_LFCLKCFG_MONITOR_MASK | SYSCTL_LFCLKCFG_LOWCAP_MASK);
-    register_temp   |=  (config->lowCap) ? (SYSCTL_LFCLKCFG_LOWCAP_ENABLE) : (SYSCTL_LFCLKCFG_LOWCAP_DISABLE);
-    register_temp   |=  (config->monitor) ? (SYSCTL_LFCLKCFG_MONITOR_ENABLE) : (SYSCTL_LFCLKCFG_MONITOR_DISABLE);
-    register_temp   |=  (config->xt1Drive);
-
-    SYSCTL->SOCLOCK.LFCLKCFG = register_temp;
-
-
-
-
-}
-
-
-
-
-void DL_SYSCTL_switchMCLKfromSYSOSCtoHSCLK (DL_SYSCTL_HSCLK_SOURCE source)
-{
-
-    SYSCTL->SOCLOCK.HSCLKCFG = (uint32_t) source;
-    SYSCTL->SOCLOCK.MCLKCFG |= SYSCTL_MCLKCFG_USEHSCLK_ENABLE;
-
-}
-
-
-////////////////////////////////////////////////////////////////////////////
 
 SYSCONFIG_WEAK void SYSCFG_DL_SYSCTL_init(void)
 {
@@ -242,22 +167,54 @@ SYSCONFIG_WEAK void SYSCFG_DL_SYSCTL_init(void)
 
     
 	DL_SYSCTL_setSYSOSCFreq(DL_SYSCTL_SYSOSC_FREQ_BASE);
-	/* Set default configuration */
-	DL_SYSCTL_disableHFXT();
+    DL_SYSCTL_disableHFXT();
 	DL_SYSCTL_disableSYSPLL();
-    DL_SYSCTL_setHFCLKSourceHFXTParams(DL_SYSCTL_HFXT_RANGE_32_48_MHZ,0, false);
+    DL_SYSCTL_setHFCLKSourceHFXTParams(DL_SYSCTL_HFXT_RANGE_32_48_MHZ,10, true);
     DL_SYSCTL_configSYSPLL((DL_SYSCTL_SYSPLLConfig *) &gSYSPLLConfig);
+
+    /*
+     * [SYSPLL_ERR_01]
+     * PLL Incorrect locking WA start.
+     * Insert after every PLL enable.
+     * This can lead an infinite loop if the condition persists
+     * and can block entry to the application code.
+     */
+
+    while (SYSCFG_DL_SYSCTL_SYSPLL_init() == false)
+    {
+        /* Toggle SYSPLL enable to re-enable SYSPLL and re-check incorrect locking */
+        DL_SYSCTL_disableSYSPLL();
+        DL_SYSCTL_enableSYSPLL();
+
+        /* Wait until SYSPLL startup is stabilized*/
+        while ((DL_SYSCTL_getClockStatus() & SYSCTL_CLKSTATUS_SYSPLLGOOD_MASK) != DL_SYSCTL_CLK_STATUS_SYSPLL_GOOD){}
+    }
     DL_SYSCTL_setULPCLKDivider(DL_SYSCTL_ULPCLK_DIV_2);
     DL_SYSCTL_setHFCLKDividerForMFPCLK(DL_SYSCTL_HFCLK_MFPCLK_DIVIDER_10);
     DL_SYSCTL_setLFCLKSourceLFXT((DL_SYSCTL_LFCLKConfig *) &gLFCLKConfig);
     DL_SYSCTL_enableMFCLK();
     DL_SYSCTL_enableMFPCLK();
-	DL_SYSCTL_setMFPCLKSource(DL_SYSCTL_MFPCLK_SOURCE_SYSOSC);
+	DL_SYSCTL_setMFPCLKSource(DL_SYSCTL_MFPCLK_SOURCE_HFCLK);
     DL_SYSCTL_setMCLKSource(SYSOSC, HSCLK, DL_SYSCTL_HSCLK_SOURCE_SYSPLL);
 
 }
 
-
+SYSCONFIG_WEAK void SYSCFG_DL_SYSCTL_CLK_init(void) {
+    while ((DL_SYSCTL_getClockStatus() & (DL_SYSCTL_CLK_STATUS_SYSPLL_GOOD
+		 | DL_SYSCTL_CLK_STATUS_HFCLK_GOOD
+		 | DL_SYSCTL_CLK_STATUS_HSCLK_GOOD
+		 | DL_SYSCTL_CLK_STATUS_LFXT_GOOD))
+	       != (DL_SYSCTL_CLK_STATUS_SYSPLL_GOOD
+		 | DL_SYSCTL_CLK_STATUS_HFCLK_GOOD
+		 | DL_SYSCTL_CLK_STATUS_HSCLK_GOOD
+		 | DL_SYSCTL_CLK_STATUS_LFXT_GOOD))
+	{
+		/* Ensure that clocks are in default POR configuration before initialization.
+		* Additionally once LFXT is enabled, the internal LFOSC is disabled, and cannot
+		* be re-enabled other than by executing a BOOTRST. */
+		;
+	}
+}
 
 static const DL_VREF_Config gVREFConfig = {
     .vrefEnable     = DL_VREF_ENABLE_DISABLE,
@@ -280,4 +237,3 @@ SYSCONFIG_WEAK void SYSCFG_DL_SYSTICK_init(void)
     /* Enable the SysTick and start counting */
     DL_SYSTICK_enable();
 }
-

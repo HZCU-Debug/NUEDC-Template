@@ -282,15 +282,8 @@ void uart_init (uart_index_enum uart_index, uint32 baud, uart_tx_pin_enum tx_pin
         (gpio_af_enum)((rx_pin >> UART_PIN_AF_OFFSET) & UART_PIN_AF_MASK),
         GPI_PULL_UP
     );
-
-    switch(uart_index)
-    {
-        case UART_0:    DL_UART_Main_setClockConfig(uart_list[uart_index], (DL_UART_Main_ClockConfig *) &uart_clock_config);   break;
-        case UART_1:    DL_UART_Main_setClockConfig(uart_list[uart_index], (DL_UART_Main_ClockConfig *) &uart_clock_config);   break;
-        case UART_2:    DL_UART_Main_setClockConfig(uart_list[uart_index], (DL_UART_Main_ClockConfig *) &uart_clock_config);   break;
-        case UART_3:    DL_UART_Main_setClockConfig(uart_list[uart_index], (DL_UART_Main_ClockConfig *) &uart_clock_config);   break;
-        default:        break;
-    }
+    
+    DL_UART_Main_setClockConfig(uart_list[uart_index], (DL_UART_Main_ClockConfig *) &uart_clock_config);
 
     DL_UART_Main_init(uart_list[uart_index], (DL_UART_Main_Config *) &uart_default_config);
     DL_UART_Main_setOversampling(uart_list[uart_index], DL_UART_OVERSAMPLING_RATE_8X);

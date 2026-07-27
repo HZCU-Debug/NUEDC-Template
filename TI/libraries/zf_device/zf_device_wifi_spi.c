@@ -63,6 +63,21 @@
 #define SOCKET_CONNECT_TIME_OUT     50000       // 单位毫秒
 #define OTHER_TIME_OUT              1000        // 单位毫秒
 
+#if ((WIFI_SPI_RECVIVE_SIZE < 32) || (WIFI_SPI_RECVIVE_SIZE > 4088))
+    #error "WIFI_SPI_RECVIVE_SIZE must be >= 32 or <= 4088"
+#endif
+
+#if (WIFI_SPI_RECVIVE_SIZE >= WIFI_SPI_RECVIVE_FIFO_SIZE)
+    #error "WIFI_SPI_RECVIVE_FIFO_SIZE must be > WIFI_SPI_RECVIVE_SIZE"
+#endif
+
+
+#if (WIFI_SPI_TRANSFER_SIZE != 4088)
+    #error "WIFI_SPI_TRANSFER_SIZE must be == 4088"
+#endif
+
+
+
 char wifi_spi_version[12];                      // 保存模块固件版本信息
 char wifi_spi_mac_addr[20];                     // 保存模块MAC地址信息
 char wifi_spi_ip_addr_port[25];                 // 保存模块IP地址与端口信息
@@ -322,6 +337,78 @@ static uint8 wifi_spi_get_ip_addr_port (void)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
+// 函数简介     WIFI SPI 获取系统时间
+// 参数说明     time_format     时间格式
+// 返回参数     *buffer         保存时间字符串地址 缓冲区大小至少需要30个字节
+// 返回参数     buffer_size     缓冲区大小 
+// 返回参数     uint8           状态 0-成功 1-错误
+// 使用示例     
+// 备注信息     需要连接有网络的热点之后才能获取到正确的时间，并且在调用这个函数之前需要确保WIFI模块中需要接收的数据已经全部接收完毕
+// 备注信息     仅WIFI SPI 外接天线版本支持
+// 备注信息     输出的信息为字符串信息，可直接printf到串口助手查看
+//-------------------------------------------------------------------------------------------------------------------
+uint8 wifi_spi_get_time (wifi_spi_time_enum time_format, char *buffer, uint8 buffer_size)
+{
+    uint8 return_state = 1;
+    wifi_spi_packets_struct temp_packets;
+    uint8 send_cmd, receive_cmd;
+    
+    // 接收时间的数组必须大于30个字节
+    // 并且模块固件必须是V2版本
+    if((30 <= buffer_size) && (!strncmp(wifi_spi_version, "V2", 2)))
+    {
+        send_cmd = WIFI_SPI_GET_TIME1 + time_format - WIFI_SPI_UTC_0;
+        receive_cmd = WIFI_SPI_REPLY_TIME1 + time_format - WIFI_SPI_UTC_0;
+
+        return_state = wifi_spi_get_parameter(send_cmd, &temp_packets, OTHER_TIME_OUT);
+        if((0 == return_state) && (receive_cmd == temp_packets.head.command))
+        {
+            return_state = strncmp((const char *)temp_packets.buffer, "OK", 2);
+            if(0 == return_state)
+            {
+                memcpy(buffer, &temp_packets.buffer[3], temp_packets.head.length - 3);
+                buffer[temp_packets.head.length - 3] = 0;
+            }
+        }
+    }
+    return return_state;
+}
+
+//-------------------------------------------------------------------------------------------------------------------
+// 函数简介     WIFI SPI 扫描热点
+// 参数说明     *buffer         保存扫描到的热点信息 包含名称与信号强度，每个信号强度后面会跟一个换行符
+// 参数说明     buffer_size     缓冲区的长度
+// 返回参数     uint8           状态 0-成功 1-错误
+// 使用示例     
+// 备注信息     仅WIFI SPI 外接天线版本支持
+// 备注信息     输出的信息为字符串信息，可直接printf到串口助手查看
+// 备注信息     每一行包含一个wifi名称与密码 
+//-------------------------------------------------------------------------------------------------------------------
+uint8 wifi_spi_wifi_scan (char *buffer, uint16 buffer_size)
+{
+    uint8 return_state;
+    
+    // 模块必须是V2版本的固件才支持此功能
+    if(!strncmp(wifi_spi_version, "V2", 2))
+    {
+        return_state = wifi_spi_set_parameter(WIFI_SPI_SET_WIFI_SCAN, NULL, 0, WIFI_CONNECT_TIME_OUT);
+        
+        if(0 == return_state)
+        {
+        #if (0 == WIFI_SPI_READ_TRANSFER)
+            wifi_spi_send_buffer(NULL, 0);
+        #endif
+            while(0 == wifi_spi_read_buffer((uint8 *)buffer, buffer_size))
+            {
+                system_delay_ms(10);
+            }
+        }
+    }
+    
+    return return_state;
+}
+
+//-------------------------------------------------------------------------------------------------------------------
 // 函数简介     WIFI SPI 设置连接的WiFi信息并尝试连接WiFi
 // 参数说明     *wifi_ssid      WIFI名称
 // 参数说明     *pass_word      WIFI密码
@@ -556,6 +643,18 @@ uint32 wifi_spi_send_buffer (const uint8 *buffer, uint32 length)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
+// 函数简介     WIFI SPI 字符串发送函数并同步接收数据
+// 参数说明     *string           需要发送的字符串
+// 返回参数     void          
+// 使用示例     wifi_spi_send_string("123");
+// 备注信息     
+//-------------------------------------------------------------------------------------------------------------------
+void wifi_spi_send_string(const char *string)
+{
+    wifi_spi_send_buffer((uint8*)string, strlen(string));
+}
+    
+//-------------------------------------------------------------------------------------------------------------------
 // 函数简介     WIFI SPI 读取缓冲区
 // 参数说明     *buffer           接收缓冲区
 // 参数说明     length          读取数据长度
@@ -566,32 +665,57 @@ uint32 wifi_spi_send_buffer (const uint8 *buffer, uint32 length)
 uint32 wifi_spi_read_buffer (uint8 *buffer, uint32 length)
 {
     zf_assert(NULL != buffer);
-    uint32 data_len = length;
+    uint32 fifo_read_length;
+    uint32 write_length = 0;
+    wifi_spi_packets_struct temp_packets;
+
+    // 首先判断FIFO中是否有数据，如果有则先从FIFO读取
+    if(fifo_used(&wifi_spi_fifo))
+    {
+        fifo_read_length = fifo_used(&wifi_spi_fifo);
+        fifo_read_length = length < fifo_read_length ? length : fifo_read_length;
+        fifo_read_buffer(&wifi_spi_fifo, buffer, &fifo_read_length, FIFO_READ_AND_CLEAN);
+        
+        buffer += fifo_read_length;
+        length -= fifo_read_length;
+        write_length += fifo_read_length;
+    }
     
 #if(1 == WIFI_SPI_READ_TRANSFER)
-    
-    wifi_spi_packets_struct temp_packets;
-    // 检查WIFI SPI状态，如果在其他中断或者线程中已经发起了通讯，则本次不能发送数据
     if(WIFI_SPI_IDLE == wifi_spi_mutex)
     {
-        // 将通讯状态设置为忙
-        wifi_spi_mutex = WIFI_SPI_BUSY;
+        wifi_spi_mutex = WIFI_SPI_BUSY;                         // 将通讯状态设置为忙
         
-        // 发起通讯查看模块内是否有数据未读取
         do
         {
-            if(wifi_spi_wait_idle(OTHER_TIME_OUT))
+            if( (WIFI_SPI_RECVIVE_SIZE > wifi_spi_fifo.size) || // 如果缓冲区空间不够则不再读取
+                (wifi_spi_wait_idle(OTHER_TIME_OUT))            // 超时退出
+              )
             {
                 break;
             }
+            
             temp_packets.head.command = WIFI_SPI_DATA;
             temp_packets.head.length  = 0;
             wifi_spi_transfer_command(&temp_packets, WIFI_SPI_RECVIVE_SIZE);
             // 检查收到的包中是否有数据
-            if((WIFI_SPI_REPLY_DATA_START == temp_packets.head.command) || (WIFI_SPI_REPLY_DATA_END == temp_packets.head.command))
+            if( ((WIFI_SPI_REPLY_DATA_START == temp_packets.head.command) || (WIFI_SPI_REPLY_DATA_END == temp_packets.head.command)) &&
+                (temp_packets.head.length)
+              )
             {
-                // 保存接收到的数据
-                if(temp_packets.head.length)
+                if(length)
+                {
+                    fifo_read_length = length >= temp_packets.head.length ? temp_packets.head.length : length;
+                    memcpy(buffer, temp_packets.buffer, fifo_read_length);
+                    buffer += fifo_read_length;
+                    length -= fifo_read_length;
+                    write_length += fifo_read_length;
+                    if(fifo_read_length < temp_packets.head.length) // 外部缓冲不足多余部分写入FIFO
+                    {
+                        fifo_write_buffer(&wifi_spi_fifo, temp_packets.buffer + fifo_read_length, temp_packets.head.length - fifo_read_length);
+                    }
+                }
+                else                                                // 全部写入FIFO
                 {
                     fifo_write_buffer(&wifi_spi_fifo, temp_packets.buffer, temp_packets.head.length);
                 }
@@ -599,10 +723,9 @@ uint32 wifi_spi_read_buffer (uint8 *buffer, uint32 length)
         }while(WIFI_SPI_REPLY_DATA_START == temp_packets.head.command);
         wifi_spi_mutex = WIFI_SPI_IDLE;
     }
-#endif 
+#endif
     
-    fifo_read_buffer(&wifi_spi_fifo, buffer, &data_len, FIFO_READ_AND_CLEAN);
-    return data_len;
+    return write_length;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -644,7 +767,11 @@ uint8 wifi_spi_init (char *wifi_ssid, char *pass_word)
         // MAC地址信息以字符串形式保存在wifi_spi_mac_addr数组中
         wifi_spi_get_mac_addr();
 
-
+        if(NULL == wifi_ssid)
+        {
+            // 初始化的时候不需要连接WIFI
+            break;
+        }
         return_state = wifi_spi_wifi_connect(wifi_ssid, pass_word);
         if(return_state)
         {

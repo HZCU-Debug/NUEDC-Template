@@ -97,7 +97,7 @@ void DL_SYSCTL_configSYSPLL(const DL_SYSCTL_SYSPLLConfig *config)
             SYSCTL_SYSPLLCFG0_MCLK2XVCO_MASK));
 
     // enable SYSPLL
-    SYSCTL->SOCLOCK.HSCLKEN |= SYSCTL_HSCLKEN_SYSPLLEN_ENABLE;
+    DL_SYSCTL_enableSYSPLL();
 
     // wait until SYSPLL startup is stabilized
     while ((DL_SYSCTL_getClockStatus() & SYSCTL_CLKSTATUS_SYSPLLGOOD_MASK) !=
@@ -117,10 +117,10 @@ void DL_SYSCTL_setLFCLKSourceLFXT(const DL_SYSCTL_LFCLKConfig *config)
         (SYSCTL_LFXTCTL_KEY_VALUE | SYSCTL_LFXTCTL_STARTLFXT_TRUE);
     // wait until LFXT oscillator is stable
     // if it does not stabilize, check the hardware/IOMUX settings
-    while ((DL_SYSCTL_getClockStatus() & SYSCTL_CLKSTATUS_LFXTGOOD_MASK) !=
-           DL_SYSCTL_CLK_STATUS_LFXT_GOOD) {
-        ;
-    }
+//    while ((DL_SYSCTL_getClockStatus() & SYSCTL_CLKSTATUS_LFXTGOOD_MASK) !=
+//           DL_SYSCTL_CLK_STATUS_LFXT_GOOD) {
+//        ;
+//    }
     if (config->monitor) {
         // set the LFCLK monitor
         SYSCTL->SOCLOCK.LFCLKCFG |= SYSCTL_LFCLKCFG_MONITOR_ENABLE;

@@ -73,9 +73,9 @@
 #if     (WIFI_SPI_AUTO_CONNECT > 2)    
 #error "WIFI_SPI_AUTO_CONNECT 的值只能为 [0,1,2]" 
 #else   
-#define WIFI_SPI_TARGET_IP          "192.168.137.1"              // 连接目标的 IP
-#define WIFI_SPI_TARGET_PORT        "8000"                      // 连接目标的端口
-#define WIFI_SPI_LOCAL_PORT         "8086"                      // 本机的端口 0：随机  可设置范围2048-65535  默认 6666
+#define WIFI_SPI_TARGET_IP          "192.168.2.21"             // 连接目标的 IP
+#define WIFI_SPI_TARGET_PORT        "8086"                      // 连接目标的端口
+#define WIFI_SPI_LOCAL_PORT         "6666"                      // 本机的端口 0：随机  可设置范围2048-65535  默认 6666
 #endif
 
 
@@ -95,10 +95,15 @@ typedef enum
                 
     WIFI_SPI_SET_WIFI_INFORMATION   = 0x10,                     // 设置WIFI信息命令
     WIFI_SPI_SET_SOCKET_INFORMATION = 0x11,                     // 设置SOCKET信息命令
+    WIFI_SPI_SET_WIFI_SCAN          = 0x12,                     // 开始扫描WIFI
+    WIFI_SPI_SET_READ_LENGTH        = 0x13,                     // 设置最大读取长度
                     
     WIFI_SPI_GET_VERSION            = 0x20,                     // 获取模块版本
     WIFI_SPI_GET_MAC_ADDR           = 0x21,                     // 获取模块MAC地址
     WIFI_SPI_GET_IP_ADDR            = 0x22,                     // 获取模块IP地址
+    WIFI_SPI_GET_TIME1              = 0x23,                     // 获取时间 格式1
+    WIFI_SPI_GET_TIME2              = 0x24,                     // 获取时间 格式2
+    WIFI_SPI_GET_TIME3              = 0x25,                     // 获取时间 格式3
                     
     // 从机回传的命令                  
     WIFI_SPI_REPLY_OK               = 0x80,                     // 从机应答的正确命令
@@ -110,6 +115,9 @@ typedef enum
     WIFI_SPI_REPLY_VERSION          = 0xA0,                     // 从机回复固件版本
     WIFI_SPI_REPLY_MAC_ADDR         = 0xA1,                     // 从机回复本机MAC地址等信息
     WIFI_SPI_REPLY_IP_ADDR          = 0xA2,                     // 从机回复本机IP地址、端口号
+    WIFI_SPI_REPLY_TIME1            = 0xA3,                     // 从机回复时间
+    WIFI_SPI_REPLY_TIME2            = 0xA4,                     // 从机回复时间
+    WIFI_SPI_REPLY_TIME3            = 0xA5,                     // 从机回复时间
     WIFI_SPI_INVALID2               = 0xFF                      // 无效数据包
 }wifi_spi_packets_command_enum;             
                 
@@ -134,18 +142,26 @@ typedef struct
     uint8 buffer[WIFI_SPI_RECVIVE_SIZE];                        // 缓冲区
 }wifi_spi_packets_struct;               
                 
-                
+typedef enum
+{
+    WIFI_SPI_UTC_0 = 1,                                         // 世界时间
+    WIFI_SPI_GMT,                                               // 世界时间 转换为GMT格式，后缀增加GMT 一般用于对接云端大模型使用
+    WIFI_SPI_UTC_8,                                             // 北京时间
+}wifi_spi_time_enum;
+
 extern char wifi_spi_version[12];                               // 固件版本         字符串
 extern char wifi_spi_mac_addr[20];                              // 模块MAC地址      字符串
 extern char wifi_spi_ip_addr_port[25];                          // IP地址与端口号   字符串
 
-uint8  wifi_spi_wifi_connect        (char *wifi_ssid, char *pass_word);
-uint8  wifi_spi_socket_connect      (char *transport_type, char *ip_addr, char *port, char *local_port);
-uint8  wifi_spi_socket_disconnect   (void);
-uint8  wifi_spi_udp_send_now        (void);
-uint32 wifi_spi_send_buffer         (const uint8 *buff, uint32 length);
-void   wifi_spi_send_string         (const char *string);
-uint32 wifi_spi_read_buffer         (uint8 *buffer, uint32 length);
+uint8   wifi_spi_get_time           (wifi_spi_time_enum time_format, char *buffer, uint8 buffer_size);
+uint8   wifi_spi_wifi_scan          (char *buffer, uint16 buffer_size);
+uint8   wifi_spi_wifi_connect       (char *wifi_ssid, char *pass_word);
+uint8   wifi_spi_socket_connect     (char *transport_type, char *ip_addr, char *port, char *local_port);
+uint8   wifi_spi_socket_disconnect  (void);
+uint8   wifi_spi_udp_send_now       (void);
+uint32  wifi_spi_send_buffer        (const uint8 *buff, uint32 length);
+void    wifi_spi_send_string        (const char *string);
+uint32  wifi_spi_read_buffer        (uint8 *buffer, uint32 length);
 
 uint8  wifi_spi_init                (char *wifi_ssid, char *pass_word);
 

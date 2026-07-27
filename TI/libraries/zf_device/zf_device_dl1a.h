@@ -59,8 +59,8 @@
 #if DL1A_USE_SOFT_IIC                                                           // 这两段 颜色正常的才是正确的 颜色灰的就是没有用的
 //====================================================软件 IIC 驱动====================================================
 #define DL1A_SOFT_IIC_DELAY                                 ( 10 )             // 软件 IIC 的时钟延时周期 数值越小 IIC 通信速率越快
-#define DL1A_SCL_PIN                                        ( A1 )             // 软件 IIC SCL 引脚 连接 VL53L0X 的 SCL 引脚
-#define DL1A_SDA_PIN                                        ( A0 )             // 软件 IIC SDA 引脚 连接 VL53L0X 的 SDA 引脚
+#define DL1A_SCL_PIN                                        ( B8 )             // 软件 IIC SCL 引脚 连接 VL53L0X 的 SCL 引脚
+#define DL1A_SDA_PIN                                        ( B26 )            // 软件 IIC SDA 引脚 连接 VL53L0X 的 SDA 引脚
 //====================================================软件 IIC 驱动====================================================
 #else
 #error "暂不支持硬件IIC通讯"

@@ -40,6 +40,10 @@
 
 #include "zf_driver_pit.h"
 
+const IRQn_Type irq_index[PIT_NUM] = {
+    TIMA0_INT_IRQn, TIMA1_INT_IRQn, TIMG0_INT_IRQn, TIMG6_INT_IRQn,
+    TIMG7_INT_IRQn, TIMG8_INT_IRQn, TIMG12_INT_IRQn};
+
 static  void pit_callbakc_defalut (uint32 event, void *ptr);
 void_callback_uint32_ptr pit_callback_list[PIT_NUM] =
 {
@@ -50,6 +54,7 @@ void *pit_callback_ptr_list[PIT_NUM] =
     pit_callbakc_defalut, pit_callbakc_defalut, pit_callbakc_defalut, pit_callbakc_defalut,
     pit_callbakc_defalut, pit_callbakc_defalut, pit_callbakc_defalut
 };
+
 
 //-------------------------------------------------------------------------------------------------------------------
 // 函数简介     PIT 中断默认回调函数
@@ -66,6 +71,51 @@ static void pit_callbakc_defalut (uint32 event, void *ptr)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
+// 函数简介     PIT 定时器分频设置
+// 参数说明     pit_n           PIT 外设模块号
+// 参数说明     period_us       需要定时器的时间 单位微妙
+// 参数说明     clock_src       定时器输入的时钟频率
+// 返回参数     void
+// 使用示例     pit_set_div(pit_n, 1000, 80000000);
+// 备注信息     
+//-------------------------------------------------------------------------------------------------------------------
+static void pit_set_div (pit_index_enum pit_n, uint32 period_us, uint32 clock_src)
+{
+    uint32 count;
+    uint32 temp_div;
+    uint16 load_reg;
+    uint8  clkdiv_reg;
+    uint8  cps_reg;
+    
+    GPTIMER_Regs *timer_obj;
+    timer_obj = timer_reg[pit_n];
+    
+    // 计算分频系数
+    count       = period_us * (clock_src / 1000000);
+    temp_div    = count >> 16;
+    clkdiv_reg  = temp_div >> 8;
+    if((0 == (count % 65536)) && (0 == (temp_div % 256)))
+    {
+        clkdiv_reg--;
+        cps_reg = temp_div / (clkdiv_reg + 1) - 1;
+    }
+    else
+    {
+        cps_reg = temp_div / (clkdiv_reg + 1);
+    }
+
+    load_reg    = count / (clkdiv_reg + 1) / (cps_reg + 1) - 1;
+    
+    // 如果这里报错，则说明设定的时间太大，定时器无法实现
+    zf_assert(7 >= clkdiv_reg);
+    
+    timer_obj->CLKSEL = GPTIMER_CLKSEL_BUSCLK_SEL_ENABLE;
+    timer_obj->CLKDIV = clkdiv_reg;
+    timer_obj->COMMONREGS.CPS = cps_reg;
+    timer_obj->COUNTERREGS.LOAD = load_reg;
+}
+
+//-------------------------------------------------------------------------------------------------------------------
 // 函数简介     PIT 中断使能
 // 参数说明     pit_n           PIT 外设模块号
 // 返回参数     void
@@ -74,17 +124,7 @@ static void pit_callbakc_defalut (uint32 event, void *ptr)
 //-------------------------------------------------------------------------------------------------------------------
 void pit_enable (pit_index_enum pit_n)
 {
-    switch(pit_n)
-    {
-        case PIT_TIM_A0 :   TIMA0 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case PIT_TIM_A1 :   TIMA1 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case PIT_TIM_G0 :   TIMG0 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case PIT_TIM_G6 :   TIMG6 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case PIT_TIM_G7 :   TIMG7 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case PIT_TIM_G8 :   TIMG8 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case PIT_TIM_G12:   TIMG12->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        default:    break;
-    }
+    timer_reg[pit_n]->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -96,17 +136,7 @@ void pit_enable (pit_index_enum pit_n)
 //-------------------------------------------------------------------------------------------------------------------
 void pit_disable (pit_index_enum pit_n)
 {
-    switch(pit_n)
-    {
-        case PIT_TIM_A0 :   TIMA0 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case PIT_TIM_A1 :   TIMA1 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case PIT_TIM_G0 :   TIMG0 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case PIT_TIM_G6 :   TIMG6 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case PIT_TIM_G7 :   TIMG7 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case PIT_TIM_G8 :   TIMG8 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case PIT_TIM_G12:   TIMG12->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        default:    break;
-    }
+    timer_reg[pit_n]->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -136,21 +166,11 @@ void pit_init (pit_index_enum pit_n, uint32 period, void_callback_uint32_ptr cal
     pit_callback_list[pit_n]        = (NULL == callback) ? (pit_callbakc_defalut) : (callback);
 
     GPTIMER_Regs *timer_obj;
-    switch(pit_n)
-    {
-        case PIT_TIM_A0  :  timer_obj = TIMA0 ; break;
-        case PIT_TIM_A1  :  timer_obj = TIMA1 ; break;
-        case PIT_TIM_G0  :  timer_obj = TIMG0 ; break;
-        case PIT_TIM_G6  :  timer_obj = TIMG6 ; break;
-        case PIT_TIM_G7  :  timer_obj = TIMG7 ; break;
-        case PIT_TIM_G8  :  timer_obj = TIMG8 ; break;
-        case PIT_TIM_G12 :  timer_obj = TIMG12; break;
-        default:    break;
-    }
+    timer_obj = timer_reg[pit_n];
 
     timer_obj->COUNTERREGS.CTRCTL = GPTIMER_CTRCTL_CM_UP | GPTIMER_CTRCTL_REPEAT_REPEAT_1;
     timer_obj->CLKSEL = GPTIMER_CLKSEL_BUSCLK_SEL_ENABLE;
-    if(TIM_G0 == pit_n || TIM_G8 == pit_n)
+    if((TIM_G0 == pit_n) || (TIM_G8 == pit_n))
     {
         timer_obj->CLKDIV = 0;
         timer_obj->COMMONREGS.CPS = 0;
@@ -163,9 +183,6 @@ void pit_init (pit_index_enum pit_n, uint32 period, void_callback_uint32_ptr cal
     timer_obj->COUNTERREGS.LOAD = period;
     timer_obj->CPU_INT.IMASK |= GPTIMER_CPU_INT_IMASK_L_SET;
 
-    const IRQn_Type irq_index[PIT_NUM] = {
-        TIMA0_INT_IRQn, TIMA1_INT_IRQn, TIMG0_INT_IRQn, TIMG6_INT_IRQn,
-        TIMG7_INT_IRQn, TIMG8_INT_IRQn, TIMG12_INT_IRQn};
     interrupt_enable(irq_index[(pit_n)]);
 
     pit_enable(pit_n);
@@ -190,7 +207,7 @@ void pit_us_init(pit_index_enum pit_n, uint32 period, void_callback_uint32_ptr c
     zf_assert(timer_funciton_check((timer_index_enum)pit_n, TIMER_FUNCTION_TIMER));
     // 如果是这一行报错 那我就得问问你为什么周期写的是 0
     zf_assert(0 != period);
-    zf_assert(0x7FF0 >= period);
+    zf_assert(0x7FFFFF >= period);
 
     timer_clock_enable((timer_index_enum)pit_n);                                // 使能时钟
 
@@ -198,28 +215,29 @@ void pit_us_init(pit_index_enum pit_n, uint32 period, void_callback_uint32_ptr c
     pit_callback_list[pit_n]        = (NULL == callback) ? (pit_callbakc_defalut) : (callback);
 
     GPTIMER_Regs *timer_obj;
-    switch(pit_n)
+    timer_obj = timer_reg[pit_n];
+    
+    if(PIT_TIM_G12 == pit_n)
     {
-        case PIT_TIM_A0  :  timer_obj = TIMA0 ; break;
-        case PIT_TIM_A1  :  timer_obj = TIMA1 ; break;
-        case PIT_TIM_G0  :  timer_obj = TIMG0 ; break;
-        case PIT_TIM_G6  :  timer_obj = TIMG6 ; break;
-        case PIT_TIM_G7  :  timer_obj = TIMG7 ; break;
-        case PIT_TIM_G8  :  timer_obj = TIMG8 ; break;
-        case PIT_TIM_G12 :  timer_obj = TIMG12; break;
-        default:    break;
+        timer_obj->CLKSEL = GPTIMER_CLKSEL_BUSCLK_SEL_ENABLE;
+        timer_obj->CLKDIV = 7;
+        timer_obj->COUNTERREGS.LOAD = period * 10;
     }
-
+    else
+    {
+        if((PIT_TIM_G0 == pit_n) || (PIT_TIM_G8 == pit_n))
+        {
+            pit_set_div(pit_n, period, SYSTEM_CLOCK_80M / 2);
+        }
+        else
+        {
+            pit_set_div(pit_n, period, SYSTEM_CLOCK_80M);
+        }
+    }
+    
     timer_obj->COUNTERREGS.CTRCTL = GPTIMER_CTRCTL_CM_UP | GPTIMER_CTRCTL_REPEAT_REPEAT_1;;
-    timer_obj->CLKSEL = GPTIMER_CLKSEL_MFCLK_SEL_ENABLE;
-    timer_obj->CLKDIV = 3;
-    timer_obj->COMMONREGS.CPS = 0;
-    timer_obj->COUNTERREGS.LOAD = period;
     timer_obj->CPU_INT.IMASK |= GPTIMER_CPU_INT_IMASK_L_SET;
 
-    const IRQn_Type irq_index[PIT_NUM] = {
-        TIMA0_INT_IRQn, TIMA1_INT_IRQn, TIMG0_INT_IRQn, TIMG6_INT_IRQn,
-        TIMG7_INT_IRQn, TIMG8_INT_IRQn, TIMG12_INT_IRQn};
     interrupt_enable(irq_index[(pit_n)]);
 
     pit_enable(pit_n);
@@ -246,73 +264,5 @@ void pit_ms_init(pit_index_enum pit_n, uint32 period, void_callback_uint32_ptr c
     zf_assert(0 != period);
     zf_assert(0x7FF0 >= period);
 
-    timer_clock_enable((timer_index_enum)pit_n);                                // 使能时钟
-
-    pit_callback_ptr_list[pit_n]    = ptr;
-    pit_callback_list[pit_n]        = (NULL == callback) ? (pit_callbakc_defalut) : (callback);
-
-    GPTIMER_Regs *timer_obj;
-    switch(pit_n)
-    {
-        case PIT_TIM_A0  :  timer_obj = TIMA0 ; break;
-        case PIT_TIM_A1  :  timer_obj = TIMA1 ; break;
-        case PIT_TIM_G0  :  timer_obj = TIMG0 ; break;
-        case PIT_TIM_G6  :  timer_obj = TIMG6 ; break;
-        case PIT_TIM_G7  :  timer_obj = TIMG7 ; break;
-        case PIT_TIM_G8  :  timer_obj = TIMG8 ; break;
-        case PIT_TIM_G12 :  timer_obj = TIMG12; break;
-        default:    break;
-    }
-
-    timer_obj->COUNTERREGS.CTRCTL = GPTIMER_CTRCTL_CM_UP | GPTIMER_CTRCTL_REPEAT_REPEAT_1;
-    timer_obj->CLKSEL = GPTIMER_CLKSEL_MFCLK_SEL_ENABLE;
-    timer_obj->CLKDIV = 7;
-	if(period <= 20)
-	{
-		switch(period)
-		{
-			case 1  :  timer_obj->COMMONREGS.CPS = 180 ; break;
-			case 2  :  timer_obj->COMMONREGS.CPS = 203 ; break;
-			case 3  :  timer_obj->COMMONREGS.CPS = 220 ; break;
-			case 4  :  timer_obj->COMMONREGS.CPS = 225 ; break;
-			case 5  :  timer_obj->COMMONREGS.CPS = 229 ; break;
-			case 6  :  timer_obj->COMMONREGS.CPS = 233 ; break;
-			case 7 :   timer_obj->COMMONREGS.CPS = 236 ; break;
-			case 8 :   timer_obj->COMMONREGS.CPS = 239 ; break;
-			case 9 :   timer_obj->COMMONREGS.CPS = 240 ; break;
-			case 10 :  timer_obj->COMMONREGS.CPS = 241 ; break;
-			case 11  :  timer_obj->COMMONREGS.CPS = 242 ; break;
-			case 12  :  timer_obj->COMMONREGS.CPS = 242 ; break;
-			case 13  :  timer_obj->COMMONREGS.CPS = 244 ; break;
-			case 14  :  timer_obj->COMMONREGS.CPS = 245 ; break;
-			case 15  :  timer_obj->COMMONREGS.CPS = 245 ; break;
-			case 16  :  timer_obj->COMMONREGS.CPS = 245 ; break;
-			case 17 :   timer_obj->COMMONREGS.CPS = 246 ; break;
-			case 18 :   timer_obj->COMMONREGS.CPS = 246 ; break;
-			case 19 :   timer_obj->COMMONREGS.CPS = 246 ; break;
-			case 20 :  timer_obj->COMMONREGS.CPS = 247 ; break;
-			default:    break;
-		}
-	}
-	else 
-	{
-		timer_obj->COMMONREGS.CPS = 250 ;
-	}
-	
-    if(PIT_TIM_G12 == pit_n)
-    {
-        timer_obj->COUNTERREGS.LOAD = period * 2 * 250;
-    }
-    else
-    {
-        timer_obj->COUNTERREGS.LOAD = period * 2;
-    }
-    timer_obj->CPU_INT.IMASK |= GPTIMER_CPU_INT_IMASK_L_SET;
-
-    const IRQn_Type irq_index[PIT_NUM] = {
-        TIMA0_INT_IRQn, TIMA1_INT_IRQn, TIMG0_INT_IRQn, TIMG6_INT_IRQn,
-        TIMG7_INT_IRQn, TIMG8_INT_IRQn, TIMG12_INT_IRQn};
-    interrupt_enable(irq_index[(pit_n)]);
-
-    pit_enable(pit_n);
+    pit_us_init(pit_n, period * 1000 , callback, ptr);
 }

@@ -61,6 +61,21 @@ const uint8 gpio_iomux_index[60] =
 };
 
 //-------------------------------------------------------------------------------------------------------------------
+// 函数简介     两个开漏输出的IO都设置为输出状态
+// 参数说明     void       
+// 返回参数     void
+// 使用示例     gpio_set_a0_a1_output();
+// 备注信息     本函数在文件内部调用 用户不用关注 也不可修改
+//-------------------------------------------------------------------------------------------------------------------
+void gpio_set_a0_a1_output (void)
+{
+    gpio_init(A0, GPO, 0, GPO_PUSH_PULL);
+    gpio_init(A1, GPO, 0, GPO_PUSH_PULL);
+    // 避免V1.0主板上电之后蜂鸣器会鸣叫
+    gpio_init(A14, GPO, 0, GPO_PUSH_PULL);
+}
+
+//-------------------------------------------------------------------------------------------------------------------
 // 函数简介     gpio 输出设置
 // 参数说明     pin         选择的引脚 (可选择范围由 zf_driver_gpio.h 内 gpio_pin_enum 枚举值确定)
 // 参数说明     dat         0：低电平 1：高电平
@@ -143,7 +158,7 @@ void gpio_set_dir (gpio_pin_enum pin, gpio_dir_enum dir, gpio_mode_enum mode)
         case GPI_PULL_UP        : register_temp |= IOMUX_PINCM_PIPU_ENABLE;     break;
 
         case GPO_PUSH_PULL      : register_temp |= 0;                           break;
-        case GPO_OPEN_DTAIN     : register_temp |= IOMUX_PINCM_HIZ1_ENABLE;     break;
+        case GPO_OPEN_DRAIN     : register_temp |= IOMUX_PINCM_HIZ1_ENABLE;     break;
         case GPO_AF_PUSH_PULL   : register_temp |= 0;                           break;
         case GPO_AF_OPEN_DTAIN  : register_temp |= IOMUX_PINCM_HIZ1_ENABLE;     break;
     }
@@ -178,7 +193,7 @@ void gpio_init (gpio_pin_enum pin, gpio_dir_enum dir, const uint8 dat, gpio_mode
         case GPI_PULL_UP        : register_temp |= (0x00000001 | IOMUX_PINCM_PIPU_ENABLE);  break;
 
         case GPO_PUSH_PULL      : register_temp |= (0x00000001);                            break;
-        case GPO_OPEN_DTAIN     : register_temp |= (0x00000001 | IOMUX_PINCM_HIZ1_ENABLE);  break;
+        case GPO_OPEN_DRAIN     : register_temp |= (0x00000001 | IOMUX_PINCM_HIZ1_ENABLE);  break;
         case GPO_AF_PUSH_PULL   : register_temp |= 0;                                       break;
         case GPO_AF_OPEN_DTAIN  : register_temp |= IOMUX_PINCM_HIZ1_ENABLE;                 break;
 		
@@ -228,7 +243,7 @@ void afio_init (gpio_pin_enum pin, gpio_dir_enum dir, gpio_af_enum af, gpio_mode
         case GPI_PULL_UP        : register_temp |= IOMUX_PINCM_PIPU_ENABLE;     break;
 
         case GPO_PUSH_PULL      : register_temp |= 0;                           break;
-        case GPO_OPEN_DTAIN     : register_temp |= IOMUX_PINCM_HIZ1_ENABLE;     break;
+        case GPO_OPEN_DRAIN     : register_temp |= IOMUX_PINCM_HIZ1_ENABLE;     break;
         case GPO_AF_PUSH_PULL   : register_temp |= 0;                           break;
         case GPO_AF_OPEN_DTAIN  : register_temp |= IOMUX_PINCM_HIZ1_ENABLE;     break;
     }

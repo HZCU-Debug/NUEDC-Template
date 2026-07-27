@@ -12,6 +12,7 @@ SOURCES := \
 	$(wildcard $(LIBRARIES)/zf_device/*.c) \
 	$(wildcard $(LIBRARIES)/zf_driver/*.c) \
 	$(wildcard $(SDK)/ti/driverlib/*.c) \
+	$(SDK)/ti/driverlib/m0p/sysctl/dl_sysctl_mspm0g1x0x_g3x0x.c \
 	$(SDK)/ti_config/ti_msp_dl_config.c \
 	startup.c
 

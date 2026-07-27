@@ -52,18 +52,18 @@
 
 //=================================================定义 TSL1401 基本配置================================================
 // TSL1401 的控制引脚定义 多个 TSL1401 建议将控制引脚直接并联
-#define TSL1401_CLK_PIN         (A28)                                         // TSL1401 的 CLK 引脚定义
-#define TSL1401_SI_PIN          (A29)                                         // TSL1401 的 SI 引脚定义
+#define TSL1401_CLK_PIN         (A28)                                           // TSL1401 的 CLK 引脚定义
+#define TSL1401_SI_PIN          (A29)                                           // TSL1401 的 SI 引脚定义
 #define TSL1401_CLK(x)          ((x) ? (gpio_high(TSL1401_CLK_PIN)) : (gpio_low(TSL1401_CLK_PIN)))
 #define TSL1401_SI(x)           ((x) ? (gpio_high(TSL1401_SI_PIN))  : (gpio_low(TSL1401_SI_PIN)))
 
-#define TSL1401_AO_PIN_MAX      ( 4 )
-#define TSL1401_AO_PIN_LIST     { ADC0_CH2_A25, ADC0_CH3_A24, ADC0_CH4_B25, ADC0_CH5_B24 } //CCD ADC引脚
+#define TSL1401_AO_PIN_MAX      ( 2 )
+#define TSL1401_AO_PIN_LIST     { ADC0_CH2_A25, ADC0_CH3_A24}                   //CCD ADC引脚
 
 // TSL1401 的周期采集部分定义
 #define TSL1401_EXPOSURE_TIME   (10 )                                           // 定义 TSL1401 曝光时间 单位 MS
 #define TSL1401_PIT_INDEX       (PIT_TIM_G8)                                    // 使用周期中断
-#define TSL1401_AD_RESOLUTION   (ADC_8BIT)                                      // ADC 精度 8bit
+#define TSL1401_AD_RESOLUTION   (ADC_12BIT)                                      // ADC 精度 8bit
 #define TSL1401_DATA_LEN        (128 )                                          // TSL1401 数据长度
 //=================================================定义 TSL1401 基本配置================================================
 

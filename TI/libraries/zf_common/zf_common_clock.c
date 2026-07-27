@@ -113,8 +113,11 @@ static void clock_set_freq (uint32 clock)
 //-------------------------------------------------------------------------------------------------------------------
 void clock_init (uint32 clock)
 {
+    extern void gpio_set_a0_a1_output (void);
+        
     clock_reset();
 	SYSCFG_DL_init();
     interrupt_init();
     system_delay_init();
+    gpio_set_a0_a1_output();
 }

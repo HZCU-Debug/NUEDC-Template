@@ -55,6 +55,8 @@ static timer_mode_enum timer_mode_state[TIM_NUM] =
     TIMER_SYSTEM_CLOCK
 };
 
+GPTIMER_Regs * const timer_reg[TIM_MAX] = {TIMA0, TIMA1, TIMG0, TIMG6, TIMG7, TIMG8, TIMG12};
+
 //-------------------------------------------------------------------------------------------------------------------
 // 函数简介     TIMER 外设确认功能状态 库内部调用
 // 参数说明     index           TIMER 外设模块号
@@ -90,17 +92,7 @@ uint8 timer_funciton_check (timer_index_enum index,timer_function_enum mode)
 //-------------------------------------------------------------------------------------------------------------------
 void timer_clock_enable (timer_index_enum index)
 {
-    switch(index)
-    {
-        case TIM_A0 :   TIMA0 ->COMMONREGS.CCLKCTL |= GPTIMER_CCLKCTL_CLKEN_ENABLED;    break;
-        case TIM_A1 :   TIMA1 ->COMMONREGS.CCLKCTL |= GPTIMER_CCLKCTL_CLKEN_ENABLED;    break;
-        case TIM_G0 :   TIMG0 ->COMMONREGS.CCLKCTL |= GPTIMER_CCLKCTL_CLKEN_ENABLED;    break;
-        case TIM_G6 :   TIMG6 ->COMMONREGS.CCLKCTL |= GPTIMER_CCLKCTL_CLKEN_ENABLED;    break;
-        case TIM_G7 :   TIMG7 ->COMMONREGS.CCLKCTL |= GPTIMER_CCLKCTL_CLKEN_ENABLED;    break;
-        case TIM_G8 :   TIMG8 ->COMMONREGS.CCLKCTL |= GPTIMER_CCLKCTL_CLKEN_ENABLED;    break;
-        case TIM_G12:   TIMG12->COMMONREGS.CCLKCTL |= GPTIMER_CCLKCTL_CLKEN_ENABLED;    break;
-        default:        break;
-    }
+    timer_reg[index]->COMMONREGS.CCLKCTL |= GPTIMER_CCLKCTL_CLKEN_ENABLED;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -112,17 +104,7 @@ void timer_clock_enable (timer_index_enum index)
 //-------------------------------------------------------------------------------------------------------------------
 void timer_start (timer_index_enum index)
 {
-    switch(index)
-    {
-        case TIM_A0 :   TIMA0 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case TIM_A1 :   TIMA1 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case TIM_G0 :   TIMG0 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case TIM_G6 :   TIMG6 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case TIM_G7 :   TIMG7 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case TIM_G8 :   TIMG8 ->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        case TIM_G12:   TIMG12->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;    break;
-        default:    break;
-    }
+    timer_reg[index]->COUNTERREGS.CTRCTL |= GPTIMER_CTRCTL_EN_ENABLED;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -134,17 +116,7 @@ void timer_start (timer_index_enum index)
 //-------------------------------------------------------------------------------------------------------------------
 void timer_stop (timer_index_enum index)
 {
-    switch(index)
-    {
-        case TIM_A0 :   TIMA0 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case TIM_A1 :   TIMA1 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case TIM_G0 :   TIMG0 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case TIM_G6 :   TIMG6 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case TIM_G7 :   TIMG7 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case TIM_G8 :   TIMG8 ->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        case TIM_G12:   TIMG12->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;  break;
-        default:    break;
-    }
+    timer_reg[index]->COUNTERREGS.CTRCTL &= ~GPTIMER_CTRCTL_EN_MASK;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -156,25 +128,23 @@ void timer_stop (timer_index_enum index)
 //-------------------------------------------------------------------------------------------------------------------
 uint16 timer_get (timer_index_enum index)
 {
-    uint16 return_value = 0;
-    switch(index)
+    uint32 return_value = 0;
+    return_value = timer_reg[index]->COUNTERREGS.CTR;
+
+    if(TIMER_US == timer_mode_state[index])
     {
-        case TIM_A0 :   return_value = TIMA0 ->COUNTERREGS.CTR; break;
-        case TIM_A1 :   return_value = TIMA1 ->COUNTERREGS.CTR; break;
-        case TIM_G0 :   return_value = TIMG0 ->COUNTERREGS.CTR; break;
-        case TIM_G6 :   return_value = TIMG6 ->COUNTERREGS.CTR; break;
-        case TIM_G7 :   return_value = TIMG7 ->COUNTERREGS.CTR; break;
-        case TIM_G8 :   return_value = TIMG8 ->COUNTERREGS.CTR; break;
-        case TIM_G12:   return_value = TIMG12->COUNTERREGS.CTR; break;
-        default:    break;
+        if(TIM_G12 == index)
+        {
+            return_value = return_value / 80;
+        }
     }
-    if(TIMER_MS == timer_mode_state[index])
+    else if(TIMER_MS == timer_mode_state[index])
     {
-        return_value = return_value / 2;
-    }
-    if(TIM_G12 == index)
-    {
-        return_value = (uint16)(return_value / 250);
+        return_value = return_value / 50;
+        if(TIM_G12 == index)
+        {
+            return_value = return_value / (50 * 200);
+        }
     }
     return return_value;
 }
@@ -188,17 +158,7 @@ uint16 timer_get (timer_index_enum index)
 //-------------------------------------------------------------------------------------------------------------------
 void timer_clear (timer_index_enum index)
 {
-    switch(index)
-    {
-        case TIM_A0 :   TIMA0 ->COUNTERREGS.CTR = 0;    break;
-        case TIM_A1 :   TIMA1 ->COUNTERREGS.CTR = 0;    break;
-        case TIM_G0 :   TIMG0 ->COUNTERREGS.CTR = 0;    break;
-        case TIM_G6 :   TIMG6 ->COUNTERREGS.CTR = 0;    break;
-        case TIM_G7 :   TIMG7 ->COUNTERREGS.CTR = 0;    break;
-        case TIM_G8 :   TIMG8 ->COUNTERREGS.CTR = 0;    break;
-        case TIM_G12:   TIMG12->COUNTERREGS.CTR = 0;    break;
-        default:    break;
-    }
+    timer_reg[index]->COUNTERREGS.CTR = 0;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -218,57 +178,54 @@ void timer_init (timer_index_enum index, timer_mode_enum mode)
     zf_assert(timer_funciton_check(index, TIMER_FUNCTION_TIMER));
 
     GPTIMER_Regs *timer_obj;
-    switch(index)
-    {
-        case TIM_A0 :   timer_obj = TIMA0 ; break;
-        case TIM_A1 :   timer_obj = TIMA1 ; break;
-        case TIM_G0 :   timer_obj = TIMG0 ; break;
-        case TIM_G6 :   timer_obj = TIMG6 ; break;
-        case TIM_G7 :   timer_obj = TIMG7 ; break;
-        case TIM_G8 :   timer_obj = TIMG8 ; break;
-        case TIM_G12:   timer_obj = TIMG12; break;
-        default:    break;
-    }
-
+    timer_obj = timer_reg[index];
+    
+    timer_clock_enable(index);
+    
     timer_obj->COUNTERREGS.CTRCTL = GPTIMER_CTRCTL_CM_UP;
+    timer_obj->COUNTERREGS.LOAD = 0xFFFF;
+    
+    uint32 clock_select = SYSTEM_CLOCK_80M;
     switch(mode)
     {
         case TIMER_US:
         {
-            timer_obj->CLKSEL = GPTIMER_CLKSEL_MFCLK_SEL_ENABLE;
-            timer_obj->CLKDIV = 3;
-            timer_obj->COMMONREGS.CPS = 0;
-            // 4 * 1000 * 1000 / 4 / 1 == 1 MHz
-            timer_obj->COUNTERREGS.LOAD = 0xFFFF;
+            if((TIM_G0 == index) || (TIM_G8 == index))
+            {
+                clock_select /= 2;
+            }
+            
+            timer_obj->CLKDIV = 0;
+            timer_obj->COMMONREGS.CPS = clock_select / 1000000 - 1;
             timer_mode_state[index] = TIMER_US;
         }break;
         case TIMER_MS:
         {
-            timer_obj->CLKSEL = GPTIMER_CLKSEL_MFCLK_SEL_ENABLE;
+            if(TIM_G0 == index || TIM_G8 == index)
+            {
+                clock_select /= 2;
+            }
+
             timer_obj->CLKDIV = 7;
-            timer_obj->COMMONREGS.CPS = 249;
-            // 4 * 1000 * 1000 / 8 / 250 == 2 KHz
-            timer_obj->COUNTERREGS.LOAD = 0xFFFF;
+            timer_obj->COMMONREGS.CPS = clock_select / 8 / 50000 - 1;
+            // 定时器设置为50KHz G12为10MHz
+            
             timer_mode_state[index] = TIMER_MS;
         }break;
         default:
         {
-            timer_obj->CLKSEL = GPTIMER_CLKSEL_BUSCLK_SEL_ENABLE;
-            if(TIM_G0 == index || TIM_G8 == index)
+            if((TIM_G0 == index) || (TIM_G8 == index))
             {
-                timer_obj->CLKDIV = 0;
-                timer_obj->COMMONREGS.CPS = 0;
+                clock_select /= 2;
             }
-            else
-            {
-                timer_obj->CLKDIV = 1;
-                timer_obj->COMMONREGS.CPS = 0;
-            }
+
+            timer_obj->CLKDIV = clock_select / 40000000 - 1;
+            timer_obj->COMMONREGS.CPS = 0;
             // 40 * 1000 * 1000 == 40 MHz
-            timer_obj->COUNTERREGS.LOAD = 0xFFFF;
             timer_mode_state[index] = TIMER_SYSTEM_CLOCK;
         }break;
     }
+    timer_obj->CLKSEL = GPTIMER_CLKSEL_BUSCLK_SEL_ENABLE;
 
     timer_stop(index);
     timer_clear(index);

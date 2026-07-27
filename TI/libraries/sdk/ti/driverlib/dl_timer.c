@@ -201,6 +201,40 @@ void DL_Timer_initCaptureMode(
             GPTIMER_CTRCTL_EN_MASK));
 }
 
+// DL_Timer_Count_CCP函数由逐飞科技添加，版权所有归逐飞科技
+void DL_Timer_Count_CCP(
+    GPTIMER_Regs *gptimer)
+{
+    Timer_Input_Chan_Config captConfig;
+
+    DL_Timer_getInChanConfig(DL_TIMER_INPUT_CHAN_0, &captConfig);
+
+    DL_Timer_setCaptureCompareInput(gptimer, DL_TIMER_CC_INPUT_INV_NOINVERT,
+        captConfig.ccpInput, captConfig.index);
+
+    DL_Timer_setLoadValue(gptimer, 65535);
+    
+    DL_Timer_setCaptureCompareCtl(gptimer, DL_TIMER_CC_MODE_CAPTURE,
+        (DL_TIMER_CC_ZCOND_NONE | DL_TIMER_CC_ACOND_TRIG_RISE |
+            DL_TIMER_CC_LCOND_NONE | DL_TIMER_CAPTURE_EDGE_DETECTION_MODE_RISING),
+        captConfig.index);
+
+    DL_Timer_setCCPDirection(gptimer, captConfig.ccpInputDir);
+    
+    captConfig.timerConfig =
+        ((uint32_t) captConfig.timerConfig | GPTIMER_CTRCTL_CM_UP);
+    
+    DL_Common_updateReg(&gptimer->COUNTERREGS.CTRCTL,
+        ((uint32_t) captConfig.timerConfig | GPTIMER_CTRCTL_CVAE_LDVAL |
+        GPTIMER_CTRCTL_CM_DOWN | GPTIMER_CTRCTL_REPEAT_REPEAT_1 |
+        DL_TIMER_START),
+        (GPTIMER_CTRCTL_CZC_MASK | GPTIMER_CTRCTL_CAC_MASK |
+        GPTIMER_CTRCTL_CLC_MASK | GPTIMER_CTRCTL_CVAE_MASK |
+        GPTIMER_CTRCTL_CM_MASK | GPTIMER_CTRCTL_REPEAT_MASK |
+        GPTIMER_CTRCTL_EN_MASK));
+}
+
+
 void DL_Timer_initCaptureTriggerMode(
     GPTIMER_Regs *gptimer, const DL_Timer_CaptureTriggerConfig *config)
 {

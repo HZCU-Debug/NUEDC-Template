@@ -85,7 +85,10 @@ extern "C" {
 #define GPIO_LFXOUT_IOMUX                                         (IOMUX_PINCM9)
 #define CPUCLK_FREQ                                                     80000000
 
-
+#define FLOAT_TO_INT_SCALE                                               (1000U)
+#define FCC_EXPECTED_RATIO                                                  2000
+#define FCC_UPPER_BOUND                       (FCC_EXPECTED_RATIO * (1 + 0.003))
+#define FCC_LOWER_BOUND                       (FCC_EXPECTED_RATIO * (1 - 0.003))
 
 /* Defines for VREF */
 #define VREF_VOLTAGE_MV                                                     3300
@@ -126,6 +129,7 @@ void SYSCFG_DL_init(void);
 void SYSCFG_DL_initPower(void);
 void SYSCFG_DL_GPIO_init(void);
 void SYSCFG_DL_SYSCTL_init(void);
+void SYSCFG_DL_SYSCTL_CLK_init(void);
 void SYSCFG_DL_VREF_init(void);
 
 void SYSCFG_DL_SYSTICK_init(void);

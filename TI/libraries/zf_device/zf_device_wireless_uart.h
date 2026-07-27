@@ -52,9 +52,9 @@
 //================================================定义 无线串口 基本配置===================================================
 #define WIRELESS_UART_INDEX         (UART_1		   )                    // 无线串口对应使用的串口号
 #define WIRELESS_UART_BUAD_RATE     (115200		   )                    // 无线串口对应使用的串口波特率
-#define WIRELESS_UART_TX_PIN        (UART1_RX_B7        )                    // 无线串口对应模块的 TX 要接到单片机的 RX
-#define WIRELESS_UART_RX_PIN        (UART1_TX_B6        )                    // 无线串口对应模块的 RX 要接到单片机的 TX
-#define WIRELESS_UART_RTS_PIN       (B2		   )                    		// 无线串口对应模块的 RTS 引脚
+#define WIRELESS_UART_TX_PIN        (UART1_RX_B5   )                    // 无线串口对应模块的 TX 要接到单片机的 RX
+#define WIRELESS_UART_RX_PIN        (UART1_TX_B6   )                    // 无线串口对应模块的 RX 要接到单片机的 TX
+#define WIRELESS_UART_RTS_PIN       (B2		       )                    // 无线串口对应模块的 RTS 引脚
 //====================================================自动波特率====================================================
 // 注意事项1：无线转串口模块版本是V2.0以下的是无法开启自动波特率的。
 // 注意事项2：开启自动波特率务必连接RTS引脚 否则会开启失败。
@@ -85,15 +85,15 @@ typedef enum
 
 
 //================================================声明 无线串口 基础函数===================================================
-uint32      wireless_uart_send_byte         (const uint8 data);
-uint32      wireless_uart_send_buffer      (const uint8 *buff, uint32 len);
-uint32      wireless_uart_send_string       (const char *str);
+uint32      wireless_uart_send_byte     (const uint8 data);
+uint32      wireless_uart_send_buffer   (const uint8 *buff, uint32 len);
+uint32      wireless_uart_send_string   (const char *str);
 
-uint32      wireless_uart_read_buffer       (uint8 *buff, uint32 len);
+uint32      wireless_uart_read_buffer   (uint8 *buff, uint32 len);
 
-void        wireless_uart_callback          (void);
+void        wireless_uart_callback      (void);
 
-uint8       wireless_uart_init              (void);
+uint8       wireless_uart_init          (void);
 //================================================声明 无线串口 基础函数===================================================
 
 #endif

@@ -54,26 +54,12 @@ void pwm_set_duty (pwm_channel_enum pin, const uint32 duty)
     zf_assert(PWM_DUTY_MAX >= duty);                                            // 占空比写入错误
 
     GPTIMER_Regs *timer_obj;
-    switch((pin >> PWM_INDEX_OFFSET) & PWM_INDEX_MASK)
-    {
-        case PWM_TIM_A0 :   timer_obj = TIMA0 ; break;
-        case PWM_TIM_A1 :   timer_obj = TIMA1 ; break;
-        case PWM_TIM_G0 :   timer_obj = TIMG0 ; break;
-        case PWM_TIM_G6 :   timer_obj = TIMG6 ; break;
-        case PWM_TIM_G7 :   timer_obj = TIMG7 ; break;
-        case PWM_TIM_G8 :   timer_obj = TIMG8 ; break;
-        case PWM_TIM_G12:   timer_obj = TIMG12; break;
-        default:    break;
-    }
+    timer_obj = timer_reg[(pin >> PWM_INDEX_OFFSET) & PWM_INDEX_MASK];
 
-    uint16  period_temp = timer_obj->COUNTERREGS.LOAD;                          // 获取自动重装载值
-    uint16  match_temp = (uint16)(period_temp * ((float)duty / PWM_DUTY_MAX));  // 计算占空比
+    uint32  period_temp = timer_obj->COUNTERREGS.LOAD;                          // 获取自动重装载值
+    uint32  match_temp = (uint32)(period_temp * ((float)duty / PWM_DUTY_MAX));  // 计算占空比
     uint32  channel_index = (pin >> PWM_CHANNEL_OFFSET) & PWM_CHANNEL_MASK;
 
-    if(0 == duty)
-    {
-        timer_obj->COMMONREGS.ODIS |= (GPTIMER_ODIS_C0CCP0_CCP_OUTPUT_LOW << channel_index);
-    }
     if(2 > channel_index)
     {
         timer_obj->COUNTERREGS.CC_01[channel_index % 2] = 
@@ -84,7 +70,12 @@ void pwm_set_duty (pwm_channel_enum pin, const uint32 duty)
         timer_obj->COUNTERREGS.CC_23[channel_index % 2] =
             (match_temp == period_temp) ? period_temp + 1 : match_temp;
     }
-    if(duty)
+    
+    if(0 == duty)
+    {
+        timer_obj->COMMONREGS.ODIS |= (GPTIMER_ODIS_C0CCP0_CCP_OUTPUT_LOW << channel_index);
+    }
+    else
     {
         timer_obj->COMMONREGS.ODIS &= ~(GPTIMER_ODIS_C0CCP0_CCP_OUTPUT_LOW << channel_index);
     }
@@ -115,60 +106,48 @@ void pwm_init (pwm_channel_enum pin, const uint32 freq, const uint32 duty)
     afio_init((gpio_pin_enum)(pin & PWM_PIN_INDEX_MASK), GPO, (gpio_af_enum)((pin >> PWM_PIN_AF_OFFSET) & PWM_PIN_AF_MASK), GPO_AF_PUSH_PULL);  // 初始化引脚
 
     GPTIMER_Regs *timer_obj;
-    switch(tim_index)
-    {
-        case PWM_TIM_A0 :   timer_obj = TIMA0 ; break;
-        case PWM_TIM_A1 :   timer_obj = TIMA1 ; break;
-        case PWM_TIM_G0 :   timer_obj = TIMG0 ; break;
-        case PWM_TIM_G6 :   timer_obj = TIMG6 ; break;
-        case PWM_TIM_G7 :   timer_obj = TIMG7 ; break;
-        case PWM_TIM_G8 :   timer_obj = TIMG8 ; break;
-        case PWM_TIM_G12:   timer_obj = TIMG12; break;
-        default:    break;
-    }
+    timer_obj = timer_reg[(pin >> PWM_INDEX_OFFSET) & PWM_INDEX_MASK];
 
     timer_obj->COUNTERREGS.CTRCTL = GPTIMER_CTRCTL_CM_UP | GPTIMER_CTRCTL_REPEAT_REPEAT_1;
 
-    uint32  clock_selcet = 0;
-    uint8   div_temp = 1;
-    uint16  psc_temp = 1;
-    uint32  clock_temp = 0;
-    if(PWM_TIM_G0 == tim_index || PWM_TIM_G8 == tim_index)
+    uint32 clock_select = SYSTEM_CLOCK_80M;
+    uint32 count;
+    uint32 temp_div;
+    uint32 load_reg;
+    uint8  clkdiv_reg;
+    uint8  cps_reg;
+    if((PWM_TIM_G0 == tim_index) || (PWM_TIM_G8 == tim_index))
     {
-        clock_selcet = 40000000;
+        clock_select /= 2;
+    }
+    
+    if(PWM_TIM_G12 == tim_index)
+    {
+        count   = clock_select / freq;
+        clkdiv_reg = 0;
+        cps_reg = 0;
     }
     else
     {
-        clock_selcet = 80000000;
-    }
-    for(;;)
-    {
-        clock_temp = clock_selcet / freq / div_temp / psc_temp;
-        if(0xFFF0 < clock_temp)
+        count       = clock_select / freq;
+        temp_div    = count >> 16;
+        clkdiv_reg  = temp_div >> 8;
+        if((0 == (count % 65536)) && (0 == (temp_div % 256)))
         {
-            psc_temp ++;
-            if(256 == psc_temp)
-            {
-                psc_temp = 1;
-                div_temp += 1;
-            }
-            if(9 == div_temp)
-            {
-                clock_selcet = 4000000;
-                psc_temp = 1;
-                div_temp = 1;
-            }
+            clkdiv_reg--;
+            cps_reg = temp_div / (clkdiv_reg + 1) - 1;
         }
         else
         {
-            break;
+            cps_reg = temp_div / (clkdiv_reg + 1);
         }
     }
-
-    timer_obj->CLKSEL = (4000000 == clock_selcet) ? (GPTIMER_CLKSEL_MFCLK_SEL_ENABLE) : (GPTIMER_CLKSEL_BUSCLK_SEL_ENABLE);
-    timer_obj->CLKDIV = div_temp - 1;
-    timer_obj->COMMONREGS.CPS = psc_temp - 1;
-    timer_obj->COUNTERREGS.LOAD = clock_selcet / freq / div_temp / psc_temp - 1;
+    
+    load_reg = count / (clkdiv_reg + 1) / (cps_reg + 1) - 1;
+    timer_obj->CLKSEL = GPTIMER_CLKSEL_BUSCLK_SEL_ENABLE;
+    timer_obj->CLKDIV = clkdiv_reg;
+    timer_obj->COMMONREGS.CPS = cps_reg;
+    timer_obj->COUNTERREGS.LOAD = load_reg;
 
     uint32  channel_index = (pin >> PWM_CHANNEL_OFFSET) & PWM_CHANNEL_MASK;
     timer_obj->COMMONREGS.CCPD |= GPTIMER_CCPD_C0CCP0_OUTPUT << ((pin >> PWM_CHANNEL_OFFSET) & PWM_CHANNEL_MASK);

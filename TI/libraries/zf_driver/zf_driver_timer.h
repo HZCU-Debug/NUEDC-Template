@@ -49,6 +49,7 @@ typedef enum
     TIM_G7  ,
     TIM_G8  ,
     TIM_G12 ,
+    TIM_MAX ,
 }timer_index_enum;
 
 typedef enum
@@ -68,6 +69,8 @@ typedef enum
 
 #define     TIM_NUM                     ( 7 )
 
+extern GPTIMER_Regs * const timer_reg[TIM_MAX];
+    
 //-------------------------------------------------------------------------------------------------------------------
 // 函数简介     TIMER 外设确认功能状态 库内部调用
 // 参数说明     index           TIMER 外设模块号

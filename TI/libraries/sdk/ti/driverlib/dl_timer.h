@@ -2952,7 +2952,22 @@ void DL_Timer_initTimerMode(
  */
 void DL_Timer_initCaptureMode(
     GPTIMER_Regs *gptimer, const DL_Timer_CaptureConfig *config);
-
+    
+/**
+ *  @brief      Configure timer in CCP edge count
+ *  Initializes all the common configurable options for the TIMx peripheral when
+ *  used in Capture mode. Any other custom configuration can be done after
+ *  calling this API.
+ *
+ *  @param[in]  gptimer        Pointer to the register overlay for the
+ *                             peripheral
+ *  @param[in]  config         Pointer to the mode configuration struct
+ *                             @ref DL_Timer_CaptureConfig.
+ *
+ */
+void DL_Timer_Count_CCP(
+    GPTIMER_Regs *gptimer);
+    
 /**
  *  @brief      Configure timer in edge count, period capture, edge time or
  *              pulse-width capture mode using the trigger as input source

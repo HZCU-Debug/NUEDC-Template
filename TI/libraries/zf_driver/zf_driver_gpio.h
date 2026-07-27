@@ -64,6 +64,8 @@ typedef enum                                                                    
     B8 ,    B9 ,    B10,    B11,    B12,    B13,    B14,    B15,
     B16,    B17,    B18,    B19,    B20,    B21,    B22,    B23,
     B24,    B25,    B26,    B27,
+    
+    GPIO_MAX,
 }gpio_pin_enum;
 
 typedef enum                                                                    // 枚举端口方向   此枚举定义不允许用户修改
@@ -80,7 +82,7 @@ typedef enum                                                                    
     GPI_PULL_UP         = 0x04,                                                 // [输入] [定义管脚上拉输入]
 
     GPO_PUSH_PULL       = 0x11,                                                 // [输出] [定义管脚推挽输出]
-    GPO_OPEN_DTAIN      = 0x12,                                                 // [输出] [定义管脚开漏输出]
+    GPO_OPEN_DRAIN      = 0x12,                                                 // [输出] [定义管脚开漏输出]
     GPO_AF_PUSH_PULL    = 0x13,                                                 // [输出] [定义管脚复用推挽输出]
     GPO_AF_OPEN_DTAIN   = 0x14,                                                 // [输出] [定义管脚复用开漏输出]
 }gpio_mode_enum;

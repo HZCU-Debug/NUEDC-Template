@@ -139,6 +139,10 @@ typedef enum
 
 //================================================¶¨Òå IMU660RC ¼Ä´æÆ÷µØÖ·================================================
 #define IMU660RC_FUNC_CFG_ACCESS    ( 0x01 )
+#define IMU660RC_FIFO_CRTL1         ( 0x07 )
+#define IMU660RC_FIFO_CRTL2         ( 0x08 )
+#define IMU660RC_FIFO_CRTL3         ( 0x09 )
+#define IMU660RC_FIFO_CRTL4         ( 0x0A )
 #define IMU660RC_INT2_CTRL          ( 0x0E )
 #define IMU660RC_CHIP_ID            ( 0x0F )
 #define IMU660RC_CTRL1              ( 0x10 )
@@ -170,7 +174,8 @@ typedef enum
 
 #define IMU660RC_PAGE_SEL           ( 0x02 )
 #define IMU660RC_EMB_FUNC_EN_A      ( 0x04 )
-#define IMU660RC_PAGE_RW            ( 0x17 )      
+#define IMU660RC_PAGE_RW            ( 0x17 )    
+#define IMU660RC_EMB_FUNC_FIFO_EN_A ( 0x44 )      
 #define IMU660RC_SFLP_ODR           ( 0x5E )
 #define IMU660RC_EMB_FUNC_CFG       ( 0x63 )
 
