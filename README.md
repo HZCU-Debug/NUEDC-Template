@@ -1,16 +1,17 @@
-# NUEDC ESP32 电机控制
+# NUEDC 电机控制
 
-本仓库包含 ESP32 电机固件和用于手柄调试的 Python 上位机
+本仓库包含 ESP32、TI MSPM0G3507 电机固件和用于手柄调试的 Python 上位机
 
 ## 项目结构
 
 ```text
 firmware/   PlatformIO 固件、SDK 和测试
+TI/         MSPM0G3507 工程、逐飞库和测试
 host/       Python 手柄调试程序
 docs/       电机协议参考资料
 ```
 
-## 固件菜单
+## ESP32 固件
 
 固件使用 1.14 英寸、240×135、ST7789V 彩屏显示菜单。当前提供以下 Demo 菜单项：
 
@@ -62,6 +63,41 @@ pio device monitor -d firmware
 
 启动流程等待电机上电 2 秒，发送使能命令并读取一次位置。USB 串口只承载二进制协议帧，不输出文本日志。
 
+## TI MSPM0G3507 固件
+
+TI 工程提供与 ESP32 固件一致的电机和通信 Demo，另有 `State Entry A`、`State Entry B` 两个状态机入口。使用 S1/S2 上下移动，S3 进入 Demo，S4 返回菜单。
+
+macOS GCC 工程默认使用安装在 `/Applications/ArmGNUToolchain/15.2.rel1/arm-none-eabi/bin` 的 Arm GNU Toolchain 15.2.Rel1。只编译固件或运行本机测试：
+
+```shell
+make -C TI/project/gcc all
+make -C TI/project/gcc test
+```
+
+使用其他安装位置时，通过 `TOOLCHAIN` 指定工具链的 `bin` 目录：
+
+```shell
+make -C TI/project/gcc TOOLCHAIN=/path/to/arm-none-eabi/bin all
+```
+
+安装 [uv](https://docs.astral.sh/uv/) 并连接调试器后，可以通过 pyOCD 安装器件包并烧录应用：
+
+```shell
+./TI/build.sh app
+```
+
+硬件冒烟程序会让 A14 蜂鸣器响两次，可分别编译、烧录已生成的固件，或重新编译后烧录：
+
+```shell
+./TI/build.sh smoke-build
+./TI/build.sh smoke-flash
+./TI/build.sh smoke
+```
+
+Keil 工程位于 `TI/project/keil/SeekFree_MSPM0G3507_Device_Library.uvprojx`。
+
+上位机通信使用 UART0（TX A10、RX A11），电机通信使用 UART2（TX B15、RX B16），波特率均为 115200。四个菜单按键 S1 至 S4 依次使用 A30、A31、B0、B1。
+
 ## Python 上位机
 
 安装 [uv](https://docs.astral.sh/uv/) 后执行：
@@ -71,7 +107,7 @@ uv sync --project host
 uv run --project host host/main.py --port /dev/cu.usbserial-0001
 ```
 
-Windows 串口可以写为 `COM3`。程序默认读取第一个手柄的 axis 3，每 50 ms 发送一次速度命令：
+Windows 串口可以写为 `COM3`。程序默认读取第一个手柄的 axis 3，每 50 ms 向开发板发送一次速度命令：
 
 ```shell
 uv run --project host host/main.py --port COM3 --axis 3
@@ -80,7 +116,7 @@ uv run --project host host/main.py --port COM3 --axis 3 --invert
 
 按 `Ctrl-C` 退出时会发送零速度命令
 
-手柄采集行为参考 [ZhiGrip-Joystick](https://github.com/LanternCX/ZhiGrip-Joystick/blob/main/main.py)，串口通信使用 `host/link.py` 中与固件一致的 COBS 与 CRC-8 协议。
+手柄采集行为参考 [ZhiGrip-Joystick](https://github.com/LanternCX/ZhiGrip-Joystick/blob/main/main.py)，串口通信使用 `host/link.py` 中与两套固件一致的 COBS 与 CRC-8 协议。
 
 ## 通信 Demo 接收端
 
@@ -100,4 +136,4 @@ uv run --project host host/receive_counter.py --port /dev/cu.usbserial-0001
 pio run -d firmware -t compiledb
 ```
 
-在编辑器中重启 clangd 即可。修改 `firmware/platformio.ini`、依赖或源文件后需要重新生成编译数据库
+在编辑器中重启 clangd 即可。修改 `firmware/platformio.ini`、依赖或源文件后需要重新生成编译数据库。TI 工程使用仓库内的 `TI/compile_flags.txt`
