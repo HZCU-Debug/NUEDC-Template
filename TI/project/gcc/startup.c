@@ -7,8 +7,27 @@ extern uint32_t _data_end;
 extern uint32_t _bss_start;
 extern uint32_t _bss_end;
 extern uint32_t _stack_top;
+#if TI_CPP_RUNTIME
+extern void __libc_init_array(void);
+#endif
 
 static void reset_handler(void);
+
+#if TI_CPP_RUNTIME
+/**
+ * @brief Provides the C runtime initialization hook
+ */
+void _init(void)
+{
+}
+
+/**
+ * @brief Provides the C runtime finalization hook
+ */
+void _fini(void)
+{
+}
+#endif
 
 /**
  * @brief Stops execution for an unhandled interrupt
@@ -98,6 +117,9 @@ static void reset_handler(void)
         *destination++ = 0;
     }
 
+#if TI_CPP_RUNTIME
+    __libc_init_array();
+#endif
     main();
     default_handler();
 }

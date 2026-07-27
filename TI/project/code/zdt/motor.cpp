@@ -1,0 +1,268 @@
+#include "zdt/motor.h"
+
+#include <cmath>
+
+#include "zdt/protocol.h"
+
+namespace zdt {
+namespace {
+
+const uint16_t kMaxRpm = 5000;
+
+}
+
+Bus::Bus(io::ByteStream& stream, io::Clock& clock, const BusConfig& config)
+    : stream_(stream), clock_(clock), config_(config), started_(false) {}
+
+Status Bus::begin() {
+    if (config_.timeoutMs == 0) {
+        return Status(Error::InvalidArgument);
+    }
+    if (!stream_.begin()) {
+        return Status(Error::NotStarted);
+    }
+    started_ = true;
+    discardInput();
+    return Status();
+}
+
+Status Bus::triggerSynchronized() {
+    const protocol::Frame frame = protocol::synchronizedTrigger();
+    return send(frame.bytes, frame.size);
+}
+
+Status Bus::command(const uint8_t* frame, size_t size) {
+    discardInput();
+    return send(frame, size);
+}
+
+Status Bus::query(uint8_t address, uint8_t function, const uint8_t* frame,
+                  size_t frameSize, uint8_t* response, size_t responseSize) {
+    clock_.delayMs(1);
+    discardInput();
+    const Status sent = send(frame, frameSize);
+    return sent ? receive(address, function, response, responseSize) : sent;
+}
+
+Status Bus::send(const uint8_t* frame, size_t size) {
+    if (!started_) {
+        return Status(Error::NotStarted);
+    }
+    if (stream_.write(frame, size) != size) {
+        return Status(Error::WriteFailed);
+    }
+    return Status();
+}
+
+Status Bus::receive(uint8_t address, uint8_t function, uint8_t* response,
+                    size_t size) {
+    size_t received = 0;
+    uint8_t recent[4];
+    size_t recentSize = 0;
+    const uint32_t startedAt = clock_.nowMs();
+
+    while (received < size &&
+           clock_.nowMs() - startedAt < config_.timeoutMs) {
+        uint8_t byte = 0;
+        if (!stream_.read(byte)) {
+            clock_.delayMs(1);
+            continue;
+        }
+        if (recentSize < sizeof(recent)) {
+            recent[recentSize++] = byte;
+        } else {
+            recent[0] = recent[1];
+            recent[1] = recent[2];
+            recent[2] = recent[3];
+            recent[3] = byte;
+        }
+        if (protocol::isProtocolError(recent, recentSize, address)) {
+            return Status(Error::InvalidResponse);
+        }
+
+        if (received == 0) {
+            if (byte == address) {
+                response[received++] = byte;
+            }
+        } else if (received == 1) {
+            if (byte == function) {
+                response[received++] = byte;
+            } else if (byte != address) {
+                received = 0;
+            }
+        } else {
+            response[received++] = byte;
+        }
+    }
+    if (received != size) {
+        return Status(Error::Timeout);
+    }
+    return Status(protocol::validateResponse(response, size, address, function));
+}
+
+void Bus::discardInput() {
+    uint8_t ignored = 0;
+    while (stream_.read(ignored)) {
+    }
+}
+
+Motor::Motor(Bus& bus, const MotorConfig& config)
+    : bus_(bus), config_(config) {}
+
+Status Motor::enable(bool enabled) {
+    if (!valid()) {
+        return Status(Error::InvalidArgument);
+    }
+    const protocol::Frame frame = protocol::enable(config_.address, enabled);
+    return bus_.command(frame.bytes, frame.size);
+}
+
+Status Motor::run(int16_t signedRpm, uint8_t acceleration, Start start) {
+    if (!valid() || signedRpm == 0 ||
+        signedRpm < -static_cast<int16_t>(kMaxRpm) ||
+        signedRpm > static_cast<int16_t>(kMaxRpm)) {
+        return Status(Error::InvalidArgument);
+    }
+
+    const bool negative = signedRpm < 0;
+    const uint16_t rpm =
+        static_cast<uint16_t>(negative ? -signedRpm : signedRpm);
+    const protocol::Frame frame = protocol::run(
+        config_.address, directionFor(negative), rpm, acceleration, start);
+    return bus_.command(frame.bytes, frame.size);
+}
+
+Status Motor::moveRelative(float degrees, const MotionOptions& options) {
+    return move(degrees, options, false);
+}
+
+Status Motor::moveAbsolute(float degrees, const MotionOptions& options) {
+    return move(degrees, options, true);
+}
+
+Status Motor::move(float degrees, const MotionOptions& options, bool absolute) {
+    if (!valid() || !std::isfinite(degrees) || degrees == 0.0f ||
+        options.rpm == 0 || options.rpm > kMaxRpm) {
+        return Status(Error::InvalidArgument);
+    }
+
+    const bool negative = degrees < 0.0f;
+    const double pulsesValue =
+        std::fabs(static_cast<double>(degrees)) *
+        config_.pulsesPerRevolution / 360.0;
+    if (pulsesValue < 0.5 || pulsesValue > 4294967295.0) {
+        return Status(Error::InvalidArgument);
+    }
+
+    const protocol::Frame frame = protocol::move(
+        config_.address, directionFor(negative), options.rpm,
+        options.acceleration, static_cast<uint32_t>(pulsesValue + 0.5),
+        absolute, options.start);
+    return bus_.command(frame.bytes, frame.size);
+}
+
+Status Motor::stop(Start start) {
+    if (!valid()) {
+        return Status(Error::InvalidArgument);
+    }
+    const protocol::Frame frame = protocol::stop(config_.address, start);
+    return bus_.command(frame.bytes, frame.size);
+}
+
+Status Motor::home(HomeMode mode, Start start) {
+    if (!valid()) {
+        return Status(Error::InvalidArgument);
+    }
+    const protocol::Frame frame = protocol::home(config_.address, mode, start);
+    return bus_.command(frame.bytes, frame.size);
+}
+
+Result<MotorState> Motor::readState() {
+    if (!valid()) {
+        return Result<MotorState>(Error::InvalidArgument);
+    }
+
+    const protocol::Frame motorRequest =
+        protocol::query(config_.address, protocol::Query::State);
+    uint8_t motorResponse[4];
+    Status status = bus_.query(config_.address, motorRequest.function,
+                               motorRequest.bytes, motorRequest.size,
+                               motorResponse, sizeof(motorResponse));
+    if (!status) {
+        return Result<MotorState>(status.error);
+    }
+
+    const protocol::Frame homeRequest =
+        protocol::query(config_.address, protocol::Query::HomeState);
+    uint8_t homeResponse[4];
+    status = bus_.query(config_.address, homeRequest.function,
+                        homeRequest.bytes, homeRequest.size, homeResponse,
+                        sizeof(homeResponse));
+    if (!status) {
+        return Result<MotorState>(status.error);
+    }
+    return Result<MotorState>(
+        protocol::motorState(motorResponse[2], homeResponse[2]));
+}
+
+Result<float> Motor::readPositionDegrees() {
+    if (!valid()) {
+        return Result<float>(Error::InvalidArgument);
+    }
+    const protocol::Frame request =
+        protocol::query(config_.address, protocol::Query::Position);
+    uint8_t response[8];
+    const Status status = bus_.query(config_.address, request.function,
+                                     request.bytes, request.size, response,
+                                     sizeof(response));
+    return status ? Result<float>(
+                        protocol::positionDegrees(response, config_.invertDirection))
+                  : Result<float>(status.error);
+}
+
+Result<float> Motor::readSpeedRpm() {
+    if (!valid()) {
+        return Result<float>(Error::InvalidArgument);
+    }
+    const protocol::Frame request =
+        protocol::query(config_.address, protocol::Query::Speed);
+    uint8_t response[6];
+    const Status status = bus_.query(config_.address, request.function,
+                                     request.bytes, request.size, response,
+                                     sizeof(response));
+    return status
+               ? Result<float>(
+                     protocol::speedRpm(response, config_.invertDirection))
+               : Result<float>(status.error);
+}
+
+Result<MotorSnapshot> Motor::readSnapshot() {
+    const Result<MotorState> state = readState();
+    if (!state) {
+        return Result<MotorSnapshot>(state.error);
+    }
+    const Result<float> position = readPositionDegrees();
+    if (!position) {
+        return Result<MotorSnapshot>(position.error);
+    }
+    const Result<float> speed = readSpeedRpm();
+    if (!speed) {
+        return Result<MotorSnapshot>(speed.error);
+    }
+
+    MotorSnapshot snapshot;
+    snapshot.state = state.value;
+    snapshot.positionDegrees = position.value;
+    snapshot.speedRpm = speed.value;
+    return Result<MotorSnapshot>(snapshot);
+}
+
+bool Motor::valid() const {
+    return config_.address != 0 && config_.pulsesPerRevolution != 0;
+}
+
+uint8_t Motor::directionFor(bool negative) const {
+    return static_cast<uint8_t>(negative != config_.invertDirection);
+}
+
+}
