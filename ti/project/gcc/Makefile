@@ -40,7 +40,7 @@ HOST_TESTS := $(HOST_TEST_DIR)/link_test $(HOST_TEST_DIR)/motor_test \
 	$(HOST_TEST_DIR)/program_runner_test $(HOST_TEST_DIR)/menu_test \
 	$(HOST_TEST_DIR)/state_machine_demo_test \
 	$(HOST_TEST_DIR)/ips114_display_test $(HOST_TEST_DIR)/uart_test \
-	$(HOST_TEST_DIR)/pid_test
+	$(HOST_TEST_DIR)/pid_test $(HOST_TEST_DIR)/filter_test
 
 CFLAGS := -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft -std=gnu11 -Os \
 	-ffunction-sections -fdata-sections -fshort-enums -fsigned-char \
@@ -136,6 +136,10 @@ $(HOST_TEST_DIR)/uart_test: $(SEEKFREE)/test/platform/uart_test.cpp \
 		-I$(SEEKFREE)/test/stubs -I$(PROJECT)/code $^ -o $@
 
 $(HOST_TEST_DIR)/pid_test: $(SEEKFREE)/test/control/pid_test.cpp
+	@mkdir -p $(dir $@)
+	$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -I$(PROJECT)/code $< -o $@
+
+$(HOST_TEST_DIR)/filter_test: $(SEEKFREE)/test/control/filter_test.cpp
 	@mkdir -p $(dir $@)
 	$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -I$(PROJECT)/code $< -o $@
 
