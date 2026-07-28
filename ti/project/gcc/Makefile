@@ -39,7 +39,9 @@ HOST_TEST_DIR := $(BUILD_DIR)/host-tests
 HOST_TESTS := $(HOST_TEST_DIR)/link_test $(HOST_TEST_DIR)/motor_test \
 	$(HOST_TEST_DIR)/program_runner_test $(HOST_TEST_DIR)/menu_test \
 	$(HOST_TEST_DIR)/state_machine_demo_test \
-	$(HOST_TEST_DIR)/ips114_display_test $(HOST_TEST_DIR)/uart_test
+	$(HOST_TEST_DIR)/ips114_display_test $(HOST_TEST_DIR)/uart_test \
+	$(HOST_TEST_DIR)/pid_test $(HOST_TEST_DIR)/filter_test \
+	$(HOST_TEST_DIR)/quaternion_test
 
 CFLAGS := -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft -std=gnu11 -Os \
 	-ffunction-sections -fdata-sections -fshort-enums -fsigned-char \
@@ -61,7 +63,7 @@ CXXFLAGS := $(filter-out -std=gnu11,$(CFLAGS)) -std=gnu++17 \
 LDFLAGS := -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft -nostartfiles \
 	-T linker.ld -Wl,--gc-sections,-Map,$(TARGET).map \
 	$(LIBRARIES)/zf_device/zf_device_config.lib \
-	--specs=nano.specs --specs=nosys.specs
+	--specs=nano.specs --specs=nosys.specs -lm
 
 .PHONY: all clean flash flash-smoke setup smoke test
 
@@ -133,6 +135,19 @@ $(HOST_TEST_DIR)/uart_test: $(SEEKFREE)/test/platform/uart_test.cpp \
 	@mkdir -p $(dir $@)
 	$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror \
 		-I$(SEEKFREE)/test/stubs -I$(PROJECT)/code $^ -o $@
+
+$(HOST_TEST_DIR)/pid_test: $(SEEKFREE)/test/control/pid_test.cpp
+	@mkdir -p $(dir $@)
+	$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -I$(PROJECT)/code $< -o $@
+
+$(HOST_TEST_DIR)/filter_test: $(SEEKFREE)/test/control/filter_test.cpp
+	@mkdir -p $(dir $@)
+	$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -I$(PROJECT)/code $< -o $@
+
+$(HOST_TEST_DIR)/quaternion_test: \
+		$(SEEKFREE)/test/control/quaternion_test.cpp
+	@mkdir -p $(dir $@)
+	$(HOST_CXX) -std=c++17 -Wall -Wextra -Werror -I$(PROJECT)/code $< -o $@
 
 $(TARGET).elf: $(OBJECTS) linker.ld
 	@mkdir -p $(BUILD_DIR)

@@ -114,6 +114,8 @@ void setup() {
         "Comm Unreliable", programRunner, program::commUnreliable());
     static ui::Item commReliableItem(
         "Comm Reliable", programRunner, program::commReliable());
+    static ui::Item quaternionItem(
+        "Quaternion", programRunner, program::quaternion());
     static ui::ConfiguredItem<program::StateMachineDemoProgram,
                               program::DemoConfiguration>
         stateMachineEntryA("State Entry A", programRunner, stateMachineDemo,
@@ -128,6 +130,7 @@ void setup() {
         &motorPositionItem,
         &commUnreliableItem,
         &commReliableItem,
+        &quaternionItem,
         &stateMachineEntryA,
         &stateMachineEntryB,
     };

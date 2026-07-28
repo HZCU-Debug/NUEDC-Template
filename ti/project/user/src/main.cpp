@@ -49,6 +49,7 @@ int main() {
                             program::commUnreliable());
     ui::Item commReliable("Comm Reliable", runner,
                           program::commReliable());
+    ui::Item quaternion("Quaternion", runner, program::quaternion());
     ui::ConfiguredItem<program::StateMachineDemoProgram,
                        program::DemoConfiguration>
         stateEntryA("State Entry A", runner, stateMachineDemo,
@@ -58,8 +59,8 @@ int main() {
         stateEntryB("State Entry B", runner, stateMachineDemo,
                     program::DemoConfiguration(program::DemoState::EntryB));
     ui::Item* items[] = {&controllerMotor, &motorRamp,      &motorPosition,
-                         &commUnreliable,  &commReliable,   &stateEntryA,
-                         &stateEntryB};
+                         &commUnreliable,  &commReliable,   &quaternion,
+                         &stateEntryA,     &stateEntryB};
     ui::Menu menu(display, "NUEDC TI", items,
                   sizeof(items) / sizeof(items[0]));
     menu.begin();
