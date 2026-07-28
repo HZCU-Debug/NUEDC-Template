@@ -1,10 +1,14 @@
 #include "program/programs.h"
 
 #include <limits.h>
+#include <string.h>
 
 #include "comm/link.h"
+#include "control/quaternion.h"
+#include "imu/gyroscope.h"
 #include "platform/board.h"
 #include "ui/view.h"
+#include "zf_common_function.h"
 #include "zdt/motor.h"
 
 namespace program {
@@ -427,6 +431,59 @@ private:
     bool firstMessage_;
 };
 
+class QuaternionProgram final : public runtime::Program {
+public:
+    QuaternionProgram()
+        : uart_(platform::communicationUart()),
+          imuReady_(false),
+          uartReady_(false) {}
+
+    void start(ui::Display& display, runtime::SystemState&) override {
+        integrator_.reset();
+        uartReady_ = uart_.begin();
+        imuReady_ = gyroscope::begin();
+        ui::view::beginPage(display, "Quaternion");
+        ui::view::beginBody(display);
+        display.text(4, 36,
+                     imuReady_ && uartReady_ ? "Streaming" : "Init error",
+                     ui::view::kTextColor, ui::view::kBackgroundColor);
+    }
+
+    void update(ui::Display&, runtime::SystemState&, ui::Event) override {
+        if (!imuReady_ || !uartReady_) {
+            return;
+        }
+
+        gyroscope::Sample sample;
+        if (!gyroscope::read(sample)) {
+            return;
+        }
+        integrator_.update(sample.gyroX, sample.gyroY, sample.gyroZ,
+                           sample.dtSeconds);
+
+        const control::Quaternion& value = integrator_.value();
+        const float components[] = {value.scalar, value.x, value.y, value.z};
+        char line[64] = {};
+        char* cursor = line;
+        for (size_t index = 0; index < 4; ++index) {
+            func_float_to_str(cursor, components[index], 6);
+            cursor += strlen(cursor);
+            *cursor++ = index == 3 ? '\r' : ',';
+        }
+        *cursor++ = '\n';
+        uart_.write(reinterpret_cast<const uint8_t*>(line),
+                    static_cast<size_t>(cursor - line));
+    }
+
+    void stop(runtime::SystemState&) override { gyroscope::end(); }
+
+private:
+    platform::Uart& uart_;
+    control::QuaternionIntegrator integrator_;
+    bool imuReady_;
+    bool uartReady_;
+};
+
 }
 
 runtime::Program& controllerMotor() {
@@ -451,6 +508,11 @@ runtime::Program& commUnreliable() {
 
 runtime::Program& commReliable() {
     static CommReliableProgram program;
+    return program;
+}
+
+runtime::Program& quaternion() {
+    static QuaternionProgram program;
     return program;
 }
 

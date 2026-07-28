@@ -38,4 +38,10 @@ runtime::Program& commUnreliable();
  */
 runtime::Program& commReliable();
 
+/**
+ * @brief IMU660RB 四元数积分 Demo
+ * @return Demo Program
+ */
+runtime::Program& quaternion();
+
 }
