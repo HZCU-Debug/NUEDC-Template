@@ -4,11 +4,11 @@
 #include <LSM6DSRSensor.h>
 #include <Wire.h>
 
+#include "config/hardware.h"
+
 namespace gyroscope {
 namespace {
 
-const int8_t kSdaPin = 21;
-const int8_t kSclPin = 22;
 const float kOutputRateHz = 208.0f;
 const int32_t kFullScaleDps = 2000;
 const float kDegreesToRadians = 0.01745329251994329577f;
@@ -22,7 +22,7 @@ uint32_t lastSampleAt = 0;
 }
 
 bool begin() {
-    Wire.begin(kSdaPin, kSclPin);
+    Wire.begin(config::kPins.imuSda, config::kPins.imuScl);
     Wire.setClock(400000);
     uint8_t identity = 0;
     const bool ready =

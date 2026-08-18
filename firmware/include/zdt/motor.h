@@ -91,8 +91,12 @@ enum class HomeMode : uint8_t {
  */
 struct BusConfig {
     BusConfig(uint32_t baudRate = 115200, int8_t rxPin = -1, int8_t txPin = -1,
-              uint32_t timeoutMs = 150)
-        : baudRate(baudRate), rxPin(rxPin), txPin(txPin), timeoutMs(timeoutMs) {}
+              uint32_t timeoutMs = 150, uint32_t queryIntervalMs = 10)
+        : baudRate(baudRate),
+          rxPin(rxPin),
+          txPin(txPin),
+          timeoutMs(timeoutMs),
+          queryIntervalMs(queryIntervalMs) {}
 
     /** UART 波特率，必须与驱动器一致 */
     uint32_t baudRate;
@@ -102,6 +106,8 @@ struct BusConfig {
     int8_t txPin;
     /** 等待一帧应答的最长时间，单位毫秒 */
     uint32_t timeoutMs;
+    /** 相邻查询前保留的总线静默时间，单位毫秒 */
+    uint32_t queryIntervalMs;
 };
 
 /**
@@ -205,12 +211,26 @@ public:
      */
     Status triggerSynchronized();
 
+    /**
+     * @brief 广播清零总线上所有电机的当前角度和脉冲计数
+     * @return 命令帧发送结果
+     */
+    Status clearPositions();
+
+    /**
+     * @brief 广播使能或失能总线上的所有电机
+     * @param enabled true 表示使能，false 表示失能
+     * @return 命令帧发送结果
+     */
+    Status enableAll(bool enabled = true);
+
 private:
     friend class Motor;
 
     Status command(const uint8_t* frame, size_t size);
     Status query(uint8_t address, uint8_t function, const uint8_t* frame, size_t frameSize,
                  uint8_t* response, size_t responseSize);
+    Status selectPins();
     Status send(const uint8_t* frame, size_t size);
     Status receive(uint8_t address, uint8_t function, uint8_t* response, size_t size);
     void discardInput();
@@ -244,6 +264,12 @@ public:
      * @return 命令帧发送结果
      */
     Status disable() { return enable(false); }
+
+    /**
+     * @brief 将驱动器当前角度、位置误差和脉冲计数清零
+     * @return 命令帧发送结果
+     */
+    Status clearPosition();
 
     /**
      * @brief 以速度模式持续运行
@@ -291,6 +317,12 @@ public:
      * @return 电机状态或通信错误
      */
     Result<MotorState> readState();
+
+    /**
+     * @brief 读取使能、到位、堵转和保护状态
+     * @return 电机运动状态或通信错误
+     */
+    Result<MotorState> readMotionState();
 
     /**
      * @brief 读取相对驱动器零点的带符号实时角度

@@ -9,6 +9,12 @@
 namespace program {
 
 /**
+ * @brief 多轴电机串口测试
+ * @return 电机测试 Program
+ */
+runtime::Program& motorTest();
+
+/**
  * @brief 手柄控制电机 Demo
  * @return Demo Program
  */

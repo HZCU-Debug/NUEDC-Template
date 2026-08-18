@@ -2,10 +2,12 @@
  * @file main.cpp
  * @brief Arduino 固件入口、屏幕菜单和按钮输入
  */
-#include <Adafruit_ST7789.h>
 #include <Arduino.h>
 #include <SPI.h>
 
+#include "config/display.h"
+#include "config/hardware.h"
+#include "config/parameters.h"
 #include "program/demo/state_machine_demo.h"
 #include "program/programs.h"
 #include "runtime/program_runner.h"
@@ -13,19 +15,6 @@
 #include "ui/menu.h"
 
 namespace {
-
-const int8_t kDisplayClockPin = 18;
-const int8_t kDisplayResetPin = 33;
-const int8_t kDisplayDataPin = 23;
-const int8_t kDisplayBacklightPin = 12;
-const int8_t kDisplayDcPin = 27;
-const int8_t kDisplayCsPin = 32;
-
-const int8_t kUpButtonPin = 0;
-const int8_t kDownButtonPin = 35;
-const int8_t kSelectButtonPin = 34;
-const int8_t kBackButtonPin = 39;
-const uint32_t kDebounceMs = 25;
 
 class Button {
 public:
@@ -37,7 +26,7 @@ public:
           changedAt_(0) {}
 
     void begin() {
-        pinMode(pin_, INPUT);
+        pinMode(pin_, config::kButtonsUseInternalPullup ? INPUT_PULLUP : INPUT);
         stablePressed_ = digitalRead(pin_) == LOW;
         lastReading_ = stablePressed_;
         changedAt_ = millis();
@@ -49,7 +38,8 @@ public:
             lastReading_ = pressed;
             changedAt_ = now;
         }
-        if (pressed == stablePressed_ || now - changedAt_ < kDebounceMs) {
+        if (pressed == stablePressed_ ||
+            now - changedAt_ < config::kButtonDebounceMs) {
             return ui::Event::None;
         }
 
@@ -65,12 +55,13 @@ private:
     uint32_t changedAt_;
 };
 
-Adafruit_ST7789 display(kDisplayCsPin, kDisplayDcPin, kDisplayResetPin);
+config::Display display(config::kPins.displayCs, config::kPins.displayDc,
+                        config::kPins.displayReset);
 Button buttons[] = {
-    Button(kUpButtonPin, ui::Event::Up),
-    Button(kDownButtonPin, ui::Event::Down),
-    Button(kSelectButtonPin, ui::Event::Select),
-    Button(kBackButtonPin, ui::Event::Back),
+    Button(config::kPins.upButton, ui::Event::Up),
+    Button(config::kPins.downButton, ui::Event::Down),
+    Button(config::kPins.selectButton, ui::Event::Select),
+    Button(config::kPins.backButton, ui::Event::Back),
 };
 ui::Menu* menu = nullptr;
 runtime::SystemState systemState;
@@ -97,12 +88,13 @@ void setup() {
         buttons[index].begin();
     }
 
-    SPI.begin(kDisplayClockPin, -1, kDisplayDataPin, kDisplayCsPin);
-    display.init(135, 240);
-    display.setRotation(1);
+    SPI.begin(config::kPins.displayClock, -1, config::kPins.displayData,
+              config::kPins.displayCs);
+    display.init(config::kDisplay.width, config::kDisplay.height);
+    display.setRotation(config::kDisplay.rotation);
     display.setTextWrap(false);
-    pinMode(kDisplayBacklightPin, OUTPUT);
-    digitalWrite(kDisplayBacklightPin, HIGH);
+    pinMode(config::kPins.displayBacklight, OUTPUT);
+    digitalWrite(config::kPins.displayBacklight, HIGH);
 
     static ui::Item controllerMotorItem(
         "Controller Motor", programRunner, program::controllerMotor());
@@ -110,6 +102,8 @@ void setup() {
         "Motor Ramp", programRunner, program::motorRamp());
     static ui::Item motorPositionItem(
         "Motor Position", programRunner, program::motorPosition());
+    static ui::Item motorTestItem(
+        "Motor Test", programRunner, program::motorTest());
     static ui::Item commUnreliableItem(
         "Comm Unreliable", programRunner, program::commUnreliable());
     static ui::Item commReliableItem(
@@ -128,6 +122,7 @@ void setup() {
         &controllerMotorItem,
         &motorRampItem,
         &motorPositionItem,
+        &motorTestItem,
         &commUnreliableItem,
         &commReliableItem,
         &quaternionItem,

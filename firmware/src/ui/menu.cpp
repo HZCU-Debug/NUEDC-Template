@@ -31,6 +31,10 @@ void Item::loop(Adafruit_GFX& display, Event event) {
 
 void Item::exit() { runner_.stop(); }
 
+void Item::requestExit() { program_.requestExit(); }
+
+bool Item::readyToExit() const { return program_.readyToExit(); }
+
 Menu::Menu(Adafruit_GFX& display, const char* title, Item* const* items,
            size_t itemCount)
     : display_(display),
@@ -40,6 +44,7 @@ Menu::Menu(Adafruit_GFX& display, const char* title, Item* const* items,
       selectedIndex_(0),
       firstVisibleIndex_(0),
       activeItem_(nullptr),
+      exitPending_(false),
       begun_(false) {}
 
 bool Menu::begin() {
@@ -65,12 +70,17 @@ void Menu::loop(Event event) {
     }
 
     if (activeItem_ != nullptr) {
-        if (event == Event::Back) {
-            activeItem_->exit();
-            activeItem_ = nullptr;
-            renderMenu();
+        if (event == Event::Back && !exitPending_) {
+            exitPending_ = true;
+            activeItem_->requestExit();
         } else {
             activeItem_->loop(display_, event);
+        }
+        if (exitPending_ && activeItem_->readyToExit()) {
+            activeItem_->exit();
+            activeItem_ = nullptr;
+            exitPending_ = false;
+            renderMenu();
         }
         return;
     }
@@ -86,6 +96,7 @@ void Menu::loop(Event event) {
             break;
         case Event::Select:
             activeItem_ = items_[selectedIndex_];
+            exitPending_ = false;
             display_.fillScreen(kBackgroundColor);
             activeItem_->enter(display_);
             break;

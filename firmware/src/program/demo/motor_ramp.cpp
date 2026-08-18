@@ -6,17 +6,12 @@
 
 #include <Arduino.h>
 
+#include "motor/system.h"
 #include "ui/view.h"
-#include "zdt/motor.h"
 
 namespace program {
 namespace {
 
-const uint32_t kSerialBaudRate = 115200;
-const int8_t kMotorRxPin = 25;
-const int8_t kMotorTxPin = 26;
-const uint8_t kMotorAddress = 1;
-const uint32_t kPulsesPerRevolution = 3200;
 const uint32_t kStepIntervalMs = 100;
 const int16_t kSpeedStepRpm = 10;
 const int16_t kMaximumRpm = 300;
@@ -24,17 +19,14 @@ const int16_t kMaximumRpm = 300;
 class MotorRampProgram final : public runtime::Program {
 public:
     MotorRampProgram()
-        : motorBus_(Serial2,
-                    zdt::BusConfig(kSerialBaudRate, kMotorRxPin, kMotorTxPin)),
-          motor_(motorBus_,
-                 zdt::MotorConfig(kMotorAddress, kPulsesPerRevolution)),
+        : motor_(motor::systemMotor(motor::Axis::X)),
           motorReady_(false),
           targetRpm_(0),
           direction_(1),
           lastStepAt_(0) {}
 
     void start(Adafruit_GFX& display, runtime::SystemState&) override {
-        zdt::Status status = motorBus_.begin();
+        motor::Status status = motor_.begin();
         if (status) {
             delay(2000);
             status = motor_.enable();
@@ -85,8 +77,7 @@ private:
         display.print(targetRpm_);
     }
 
-    zdt::Bus motorBus_;
-    zdt::Motor motor_;
+    motor::Motor& motor_;
     bool motorReady_;
     int16_t targetRpm_;
     int8_t direction_;

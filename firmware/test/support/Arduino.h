@@ -14,13 +14,32 @@ inline unsigned long millis() {
     return now++;
 }
 
-inline void delay(unsigned long) {}
+inline unsigned long& delayedMilliseconds() {
+    static unsigned long value = 0;
+    return value;
+}
+
+inline void delay(unsigned long milliseconds) {
+    delayedMilliseconds() += milliseconds;
+}
 
 class HardwareSerial {
 public:
+    HardwareSerial() : rxPin(-1), txPin(-1) {}
+
     void begin(unsigned long) {}
 
-    void begin(unsigned long, uint32_t, int8_t, int8_t) {}
+    void begin(unsigned long, uint32_t, int8_t newRxPin, int8_t newTxPin) {
+        rxPin = newRxPin;
+        txPin = newTxPin;
+    }
+
+    bool setPins(int8_t newRxPin, int8_t newTxPin, int8_t = -1,
+                 int8_t = -1) {
+        if (newRxPin >= 0) rxPin = newRxPin;
+        if (newTxPin >= 0) txPin = newTxPin;
+        return true;
+    }
 
     size_t write(const uint8_t* data, size_t size) {
         transmitted.insert(transmitted.end(), data, data + size);
@@ -57,7 +76,13 @@ public:
         received.insert(received.end(), data.begin(), data.end());
     }
 
+    void receive(const std::vector<uint8_t>& data) {
+        received.insert(received.end(), data.begin(), data.end());
+    }
+
     std::vector<uint8_t> transmitted;
+    int8_t rxPin;
+    int8_t txPin;
 
 private:
     std::deque<uint8_t> received;

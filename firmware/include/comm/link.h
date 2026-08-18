@@ -184,7 +184,7 @@ public:
     }
 
     /**
-     * @brief 初始化 UART 并清空链路状态
+     * @brief 初始化 UART 并清空当前收发状态
      * @return 配置有效时返回 true
      */
     bool begin() {
@@ -194,11 +194,9 @@ public:
         serial_.begin(config_.baudRate, SERIAL_8N1, config_.rxPin, config_.txPin);
         started_ = true;
         waiting_ = false;
-        nextSequence_ = 0;
         pendingSize_ = 0;
         receivedSize_ = 0;
         discarding_ = false;
-        hasReceivedSequence_ = false;
         return true;
     }
 

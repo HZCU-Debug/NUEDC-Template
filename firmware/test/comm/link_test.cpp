@@ -41,6 +41,19 @@ int main() {
     serial.receive({0x01, 0x01, 0x01, 0x01, 0x00});
     assert(link.poll().type == comm::EventType::Delivered);
     assert(link.poll().type == comm::EventType::None);
+
+    assert(link.begin());
+    serial.transmitted.clear();
+    assert(link.send(1, reliablePayload, sizeof(reliablePayload),
+                     comm::Delivery::Reliable) == comm::SendResult::Accepted);
+    std::vector<uint8_t> restartedFrame = serial.transmitted;
+    restartedFrame.pop_back();
+    size_t restartedSize = 0;
+    assert(comm::detail::cobsDecode(restartedFrame.data(), restartedFrame.size(),
+                                    restartedSize));
+    assert(restartedFrame[1] == 1);
+    link.cancel();
+
     assert(link.send(2, NULL, 0, comm::Delivery::Unreliable) ==
            comm::SendResult::Accepted);
 

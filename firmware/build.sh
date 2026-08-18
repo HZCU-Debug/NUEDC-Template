@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-pio run -d firmware -t compiledb
+environment=${1:-}
+if [[ $# -ne 1 || ( $environment != "esp32" && $environment != "esp32s3" ) ]]; then
+    echo "Usage: $0 <esp32|esp32s3>" >&2
+    exit 2
+fi
 
-pio run -d firmware -t upload
+pio run -d firmware -e "$environment" -t compiledb
+pio run -d firmware -e "$environment" -t upload

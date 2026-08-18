@@ -24,6 +24,7 @@ struct Frame {
 };
 
 Frame synchronizedTrigger();
+Frame clearPosition(uint8_t address);
 Frame enable(uint8_t address, bool enabled);
 Frame run(uint8_t address, uint8_t direction, uint16_t rpm, uint8_t acceleration, Start start);
 Frame move(uint8_t address, uint8_t direction, uint16_t rpm, uint8_t acceleration,
