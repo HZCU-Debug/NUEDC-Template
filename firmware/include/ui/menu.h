@@ -70,6 +70,17 @@ public:
      */
     void exit();
 
+    /**
+     * @brief 请求当前 Program 执行退出前收尾
+     */
+    void requestExit();
+
+    /**
+     * @brief 判断当前 Program 是否可以退出
+     * @return 可以退出时返回 true
+     */
+    bool readyToExit() const;
+
 protected:
     runtime::ProgramRunner& runner_;
     runtime::Program& program_;
@@ -152,6 +163,7 @@ private:
     size_t selectedIndex_;
     size_t firstVisibleIndex_;
     Item* activeItem_;
+    bool exitPending_;
     bool begun_;
 };
 

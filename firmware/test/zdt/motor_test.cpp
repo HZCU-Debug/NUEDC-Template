@@ -16,7 +16,9 @@ int main() {
 
     assert(bus.begin());
 
+    const unsigned long delayBeforeCommand = delayedMilliseconds();
     assert(motor.enable());
+    assert(delayedMilliseconds() - delayBeforeCommand >= 10);
     expectBytes(serial.transmitted, {0x01, 0xF3, 0xAB, 0x01, 0x00, 0x6B});
 
     serial.transmitted.clear();
@@ -24,10 +26,33 @@ int main() {
     expectBytes(serial.transmitted, {0x01, 0xF3, 0xAB, 0x00, 0x00, 0x6B});
 
     serial.transmitted.clear();
+    assert(motor.clearPosition());
+    expectBytes(serial.transmitted, {0x01, 0x0A, 0x6D, 0x6B});
+
+    serial.transmitted.clear();
+    assert(motor.moveAbsolute(0.0f, zdt::MotionOptions(300)));
+    expectBytes(serial.transmitted,
+                {0x01, 0xFD, 0x00, 0x01, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x01, 0x00, 0x6B});
+    assert(!motor.moveAbsolute(0.01f, zdt::MotionOptions(300)));
+
+    serial.transmitted.clear();
     assert(motor.moveRelative(-90.0f, zdt::MotionOptions(300, 10, zdt::Start::Synchronized)));
     expectBytes(serial.transmitted,
                 {0x01, 0xFD, 0x01, 0x01, 0x2C, 0x0A, 0x00, 0x00, 0x03, 0x20,
                  0x00, 0x01, 0x6B});
+
+    serial.transmitted.clear();
+    assert(bus.clearPositions());
+    expectBytes(serial.transmitted, {0x00, 0x0A, 0x6D, 0x6B});
+
+    serial.transmitted.clear();
+    assert(bus.enableAll(false));
+    expectBytes(serial.transmitted, {0x00, 0xF3, 0xAB, 0x00, 0x00, 0x6B});
+
+    serial.transmitted.clear();
+    assert(bus.enableAll());
+    expectBytes(serial.transmitted, {0x00, 0xF3, 0xAB, 0x01, 0x00, 0x6B});
 
     serial.transmitted.clear();
     serial.respondWith({0x01, 0x3A, 0x03, 0x6B});

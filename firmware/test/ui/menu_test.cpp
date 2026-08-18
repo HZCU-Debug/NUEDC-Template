@@ -49,6 +49,25 @@ public:
     int startedValue;
 };
 
+class DeferredExitProgram final : public runtime::Program {
+public:
+    DeferredExitProgram() : exits(0), stops(0), ready(false) {}
+
+    void start(Adafruit_GFX&, runtime::SystemState&) override {}
+
+    void update(Adafruit_GFX&, runtime::SystemState&, ui::Event) override {}
+
+    void requestExit() override { ++exits; }
+
+    bool readyToExit() const override { return ready; }
+
+    void stop(runtime::SystemState&) override { ++stops; }
+
+    int exits;
+    int stops;
+    bool ready;
+};
+
 int main() {
     Adafruit_GFX display(240, 135);
     runtime::SystemState state;
@@ -98,6 +117,23 @@ int main() {
     configuredMenu.loop(ui::Event::Down);
     configuredMenu.loop(ui::Event::Select);
     assert(configured.startedValue == 2);
+
+    runtime::SystemState deferredState;
+    runtime::ProgramRunner deferredRunner(deferredState);
+    DeferredExitProgram deferredProgram;
+    ui::Item deferredItem("Deferred", deferredRunner, deferredProgram);
+    ui::Item* deferredItems[] = {&deferredItem};
+    ui::Menu deferredMenu(display, "Deferred", deferredItems, 1);
+
+    assert(deferredMenu.begin());
+    deferredMenu.loop(ui::Event::Select);
+    deferredMenu.loop(ui::Event::Back);
+    assert(deferredProgram.exits == 1);
+    assert(deferredProgram.stops == 0);
+
+    deferredProgram.ready = true;
+    deferredMenu.loop(ui::Event::None);
+    assert(deferredProgram.stops == 1);
 
     return 0;
 }

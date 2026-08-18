@@ -34,6 +34,17 @@ public:
                         ui::Event event) = 0;
 
     /**
+     * @brief 请求程序结束并执行必要的异步收尾
+     */
+    virtual void requestExit() {}
+
+    /**
+     * @brief 判断程序是否可以结束
+     * @return 可以结束时返回 true
+     */
+    virtual bool readyToExit() const { return true; }
+
+    /**
      * @brief 停止程序并结束业务活动
      * @param state 共享系统状态
      */
