@@ -56,27 +56,13 @@ enum class MotorModel : uint8_t {
     Atk,
 };
 
-/**
- * @brief 多轴电机型号组合
- */
-enum class MotorLayout : uint8_t {
-    /** 四轴全部使用张大头电机 */
-    AllZdt,
-    /** 四轴全部使用正点原子电机 */
-    AllAtk,
-    /** X 和 Y 使用张大头，Z 和 Roll 使用正点原子 */
-    Mixed,
-};
-
-/** 当前电机组合 */
-constexpr MotorLayout kMotorLayout = MotorLayout::AllAtk;
+/** 四轴使用的电机型号 */
+constexpr MotorModel kMotorModel = MotorModel::Atk;
 
 /**
  * @brief 单轴电机硬件配置
  */
 struct AxisMotorConfig {
-    /** 电机型号 */
-    MotorModel model;
     /** 驱动器地址 */
     uint8_t address;
     /** 张大头电机每圈脉冲数 */
@@ -98,7 +84,6 @@ constexpr uint32_t kMotorBaudRate = 115200;
 
 /** X 轴电机配置 */
 constexpr AxisMotorConfig kXMotor = {
-    kMotorLayout == MotorLayout::AllAtk ? MotorModel::Atk : MotorModel::Zdt,
     1,
     3200,
     false,
@@ -106,7 +91,6 @@ constexpr AxisMotorConfig kXMotor = {
 
 /** Y 轴电机配置 */
 constexpr AxisMotorConfig kYMotor = {
-    kMotorLayout == MotorLayout::AllAtk ? MotorModel::Atk : MotorModel::Zdt,
     2,
     3200,
     false,
@@ -114,7 +98,6 @@ constexpr AxisMotorConfig kYMotor = {
 
 /** Z 轴电机配置 */
 constexpr AxisMotorConfig kZMotor = {
-    kMotorLayout == MotorLayout::AllZdt ? MotorModel::Zdt : MotorModel::Atk,
     3,
     3200,
     false,
@@ -122,7 +105,6 @@ constexpr AxisMotorConfig kZMotor = {
 
 /** Roll 轴电机配置 */
 constexpr AxisMotorConfig kRollMotor = {
-    kMotorLayout == MotorLayout::AllZdt ? MotorModel::Zdt : MotorModel::Atk,
     4,
     3200,
     false,

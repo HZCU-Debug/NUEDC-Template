@@ -11,7 +11,7 @@ constexpr uint32_t kButtonDebounceMs = 25;
 
 /** 电机测试程序加速度档位 */
 constexpr uint8_t kMotorTestAcceleration =
-    kMotorLayout == MotorLayout::AllZdt ? 100 : 10;
+    kMotorModel == MotorModel::Zdt ? 100 : 10;
 
 /** 电机测试程序最大转速，单位 RPM */
 constexpr int16_t kMotorTestMaximumRpm = 6000;

@@ -34,7 +34,7 @@ pio --version
 
 烧录前检查 [`firmware/include/config/hardware.h`](firmware/include/config/hardware.h)：
 
-1. `kMotorLayout` 与实际电机型号组合一致
+1. `kMotorModel` 与四个轴的实际电机型号一致
 2. 四个轴的驱动器地址、每圈脉冲数和方向一致
 3. 对应开发板分支中的屏幕、按键、IMU 和电机引脚一致
 
@@ -163,32 +163,23 @@ ESP32-S3 使用内部上拉。ESP32 配置需要按硬件提供外部上拉。
 
 ## 电机型号与轴配置
 
-`MotorLayout` 提供三种组合：
-
-| 配置 | X | Y | Z | R |
-| --- | --- | --- | --- | --- |
-| `AllZdt` | 张大头 | 张大头 | 张大头 | 张大头 |
-| `AllAtk` | 正点原子 | 正点原子 | 正点原子 | 正点原子 |
-| `Mixed` | 张大头 | 张大头 | 正点原子 | 正点原子 |
-
-选择组合：
+ESP32 的四个轴使用同一种电机型号。`MotorModel::Zdt` 表示张大头，`MotorModel::Atk` 表示正点原子：
 
 ```cpp
-constexpr MotorLayout kMotorLayout = MotorLayout::AllAtk;
+constexpr MotorModel kMotorModel = MotorModel::Atk;
 ```
 
 每个轴使用一份 `AxisMotorConfig`：
 
 ```cpp
 constexpr AxisMotorConfig kXMotor = {
-    kMotorLayout == MotorLayout::AllAtk ? MotorModel::Atk : MotorModel::Zdt,
     1,      // 驱动器地址
     3200,   // 张大头电机每圈脉冲数
     false,  // 逻辑方向是否反转
 };
 ```
 
-组合决定轴使用哪套驱动，轴配置决定地址、张大头每圈脉冲数和逻辑方向。默认地址为 X=1、Y=2、Z=3、R=4。
+`kMotorModel` 决定四个轴使用哪套驱动，轴配置决定地址、张大头每圈脉冲数和逻辑方向。默认地址为 X=1、Y=2、Z=3、R=4。
 
 通用电机接口位于 [`firmware/include/motor/motor.h`](firmware/include/motor/motor.h)，业务程序通过 `motor::systemMotor(motor::Axis::X)` 获取配置后的轴，不直接依赖厂商 SDK。
 

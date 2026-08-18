@@ -20,15 +20,6 @@ constexpr int8_t kMotorRxPins[] = {
     config::kPins.motorRollRx,
 };
 
-constexpr int8_t kAtkRxPin =
-    config::kXMotor.model == config::MotorModel::Atk
-        ? config::kPins.motorRx
-        : config::kYMotor.model == config::MotorModel::Atk
-              ? config::kPins.motorYRx
-              : config::kZMotor.model == config::MotorModel::Atk
-                    ? config::kPins.motorZRx
-                    : config::kPins.motorRollRx;
-
 constexpr int8_t kAtkTxPin = config::kPins.atkMotorTx >= 0
                                  ? config::kPins.atkMotorTx
                                  : config::kPins.motorTx;
@@ -69,18 +60,19 @@ Motor& systemMotor(Axis axis) {
                                 config::kPins.motorTx));
     static atk::Bus atkBus(
         Serial2,
-        atk::BusConfig(config::kMotorBaudRate, kAtkRxPin, kAtkTxPin));
+        atk::BusConfig(config::kMotorBaudRate, config::kPins.motorRx,
+                       kAtkTxPin));
     static Motor& x =
-        ConfiguredMotor<Axis::X, config::kXMotor.model>::get(
+        ConfiguredMotor<Axis::X, config::kMotorModel>::get(
             zdtBus, atkBus, config::kXMotor);
     static Motor& y =
-        ConfiguredMotor<Axis::Y, config::kYMotor.model>::get(
+        ConfiguredMotor<Axis::Y, config::kMotorModel>::get(
             zdtBus, atkBus, config::kYMotor);
     static Motor& z =
-        ConfiguredMotor<Axis::Z, config::kZMotor.model>::get(
+        ConfiguredMotor<Axis::Z, config::kMotorModel>::get(
             zdtBus, atkBus, config::kZMotor);
     static Motor& rotation =
-        ConfiguredMotor<Axis::Rotation, config::kRollMotor.model>::get(
+        ConfiguredMotor<Axis::Rotation, config::kMotorModel>::get(
             zdtBus, atkBus, config::kRollMotor);
 
     switch (axis) {
