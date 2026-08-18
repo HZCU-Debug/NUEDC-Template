@@ -76,6 +76,10 @@ public:
         received.insert(received.end(), data.begin(), data.end());
     }
 
+    void receive(const std::vector<uint8_t>& data) {
+        received.insert(received.end(), data.begin(), data.end());
+    }
+
     std::vector<uint8_t> transmitted;
     int8_t rxPin;
     int8_t txPin;

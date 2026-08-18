@@ -7,17 +7,13 @@
 #include <Arduino.h>
 
 #include "comm/link.h"
+#include "motor/system.h"
 #include "ui/view.h"
-#include "zdt/motor.h"
 
 namespace program {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
-const int8_t kMotorRxPin = 25;
-const int8_t kMotorTxPin = 26;
-const uint8_t kMotorAddress = 1;
-const uint32_t kPulsesPerRevolution = 3200;
 const uint16_t kMaximumMotorRpm = 300;
 const uint8_t kAcceleration = 0;
 const uint32_t kCommandTimeoutMs = 500;
@@ -26,10 +22,7 @@ const uint8_t kVelocityMessage = 1;
 class ControllerMotorProgram final : public runtime::Program {
 public:
     ControllerMotorProgram()
-        : motorBus_(Serial2,
-                    zdt::BusConfig(kSerialBaudRate, kMotorRxPin, kMotorTxPin)),
-          motor_(motorBus_,
-                 zdt::MotorConfig(kMotorAddress, kPulsesPerRevolution)),
+        : motor_(motor::systemMotor(motor::Axis::X)),
           controllerLink_(Serial, comm::LinkConfig(kSerialBaudRate)),
           motorReady_(false),
           motorRunning_(false),
@@ -38,14 +31,14 @@ public:
 
     void start(Adafruit_GFX& display, runtime::SystemState&) override {
         controllerLink_.begin();
-        zdt::Status status = motorBus_.begin();
+        motor::Status status = motor_.begin();
         if (status) {
             delay(2000);
             status = motor_.enable();
         }
         if (status) {
-            const zdt::Result<float> position = motor_.readPositionDegrees();
-            status = zdt::Status(position.error);
+            const motor::Result<float> position = motor_.readPositionDegrees();
+            status = motor::Status(position.error, position.detail);
         }
         motorReady_ = static_cast<bool>(status);
         motorRunning_ = false;
@@ -105,7 +98,7 @@ private:
 
         const int16_t rpm = static_cast<int16_t>(
             static_cast<int32_t>(velocity) * kMaximumMotorRpm / 1000);
-        const zdt::Status status =
+        const motor::Status status =
             rpm == 0 ? motor_.stop() : motor_.run(rpm, kAcceleration);
         if (!status) {
             return false;
@@ -138,8 +131,7 @@ private:
         display.print(targetRpm_);
     }
 
-    zdt::Bus motorBus_;
-    zdt::Motor motor_;
+    motor::Motor& motor_;
     comm::Link<2> controllerLink_;
     bool motorReady_;
     bool motorRunning_;

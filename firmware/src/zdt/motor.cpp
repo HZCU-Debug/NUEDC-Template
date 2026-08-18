@@ -48,6 +48,10 @@ Status Bus::command(const uint8_t* frame, size_t size) {
     if (frame == nullptr || size < 2) {
         return Status(Error::InvalidArgument);
     }
+    const Status selected = selectPins();
+    if (!selected) {
+        return selected;
+    }
     discardInput();
     const Status status = send(frame, size);
     if (status) {
@@ -58,10 +62,25 @@ Status Bus::command(const uint8_t* frame, size_t size) {
 
 Status Bus::query(uint8_t address, uint8_t function, const uint8_t* frame, size_t frameSize,
                   uint8_t* response, size_t responseSize) {
+    const Status selected = selectPins();
+    if (!selected) {
+        return selected;
+    }
     delay(config_.queryIntervalMs);
     discardInput();
     const Status sent = send(frame, frameSize);
     return sent ? receive(address, function, response, responseSize) : sent;
+}
+
+Status Bus::selectPins() {
+    if (!started_) {
+        return Status(Error::NotStarted);
+    }
+    if ((config_.rxPin >= 0 || config_.txPin >= 0) &&
+        !serial_.setPins(config_.rxPin, config_.txPin)) {
+        return Status(Error::InvalidArgument);
+    }
+    return Status();
 }
 
 Status Bus::send(const uint8_t* frame, size_t size) {

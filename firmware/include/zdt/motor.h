@@ -230,6 +230,7 @@ private:
     Status command(const uint8_t* frame, size_t size);
     Status query(uint8_t address, uint8_t function, const uint8_t* frame, size_t frameSize,
                  uint8_t* response, size_t responseSize);
+    Status selectPins();
     Status send(const uint8_t* frame, size_t size);
     Status receive(uint8_t address, uint8_t function, uint8_t* response, size_t size);
     void discardInput();

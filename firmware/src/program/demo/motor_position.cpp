@@ -6,38 +6,31 @@
 
 #include <Arduino.h>
 
+#include "motor/system.h"
 #include "ui/view.h"
-#include "zdt/motor.h"
 
 namespace program {
 namespace {
 
 const uint32_t kSerialBaudRate = 115200;
-const int8_t kMotorRxPin = 25;
-const int8_t kMotorTxPin = 26;
-const uint8_t kMotorAddress = 1;
-const uint32_t kPulsesPerRevolution = 3200;
 const uint32_t kReadIntervalMs = 500;
 
 class MotorPositionProgram final : public runtime::Program {
 public:
     MotorPositionProgram()
-        : motorBus_(Serial2,
-                    zdt::BusConfig(kSerialBaudRate, kMotorRxPin, kMotorTxPin)),
-          motor_(motorBus_,
-                 zdt::MotorConfig(kMotorAddress, kPulsesPerRevolution)),
+        : motor_(motor::systemMotor(motor::Axis::X)),
           motorReady_(false),
           lastReadAt_(0),
           positionDegrees_(0.0f),
-          error_(zdt::Error::None) {}
+          error_(motor::Error::None) {}
 
     void start(Adafruit_GFX& display, runtime::SystemState&) override {
         positionDegrees_ = 0.0f;
         Serial.begin(kSerialBaudRate);
-        zdt::Status status = motorBus_.begin();
+        motor::Status status = motor_.begin();
         if (status) {
             delay(2000);
-            status = motor_.disable();
+            status = motor_.enable(false);
         }
         motorReady_ = static_cast<bool>(status);
         error_ = status.error;
@@ -56,7 +49,7 @@ public:
             return;
         }
 
-        const zdt::Result<float> position = motor_.readPositionDegrees();
+        const motor::Result<float> position = motor_.readPositionDegrees();
         error_ = position.error;
         if (position) {
             positionDegrees_ = position.value;
@@ -73,7 +66,7 @@ private:
     void render(Adafruit_GFX& display) const {
         ui::view::beginBody(display);
         display.setCursor(6, 42);
-        if (error_ == zdt::Error::None) {
+        if (error_ == motor::Error::None) {
             display.print("Angle: ");
             display.print(positionDegrees_, 2);
         } else {
@@ -82,12 +75,11 @@ private:
         }
     }
 
-    zdt::Bus motorBus_;
-    zdt::Motor motor_;
+    motor::Motor& motor_;
     bool motorReady_;
     uint32_t lastReadAt_;
     float positionDegrees_;
-    zdt::Error error_;
+    motor::Error error_;
 };
 
 MotorPositionProgram program;

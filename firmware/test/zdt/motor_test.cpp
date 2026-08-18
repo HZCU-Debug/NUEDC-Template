@@ -16,8 +16,10 @@ int main() {
 
     assert(bus.begin());
 
+    assert(serial.setPins(18, 19));
     const unsigned long delayBeforeCommand = delayedMilliseconds();
     assert(motor.enable());
+    assert(serial.rxPin == 16 && serial.txPin == 17);
     assert(delayedMilliseconds() - delayBeforeCommand >= 10);
     expectBytes(serial.transmitted, {0x01, 0xF3, 0xAB, 0x01, 0x00, 0x6B});
 

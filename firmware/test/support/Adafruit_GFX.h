@@ -22,6 +22,7 @@ public:
     void setTextSize(uint8_t) {}
     void setCursor(int16_t, int16_t) {}
     void print(const char* text) { printed.push_back(text); }
+    void print(float value, int) { printed.push_back(std::to_string(value)); }
 
     uint16_t fillColor;
     std::vector<std::string> printed;
